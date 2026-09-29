@@ -18,12 +18,14 @@ const REQUEST_TIMEOUT_MS = 60_000;
 export class ProviderError extends Error {
   readonly status: number;
   readonly providerId: string;
+  readonly model: string;
 
-  constructor(message: string, status: number, providerId: string) {
+  constructor(message: string, status: number, providerId: string, model = '') {
     super(message);
     this.name = 'ProviderError';
     this.status = status;
     this.providerId = providerId;
+    this.model = model;
   }
 }
 
@@ -117,6 +119,7 @@ async function callHttpProvider(
         `${provider.name} 返回 ${response.status}：${redact(message, provider.apiKey)}`,
         response.status,
         provider.providerId,
+        provider.model,
       );
     }
 
@@ -126,19 +129,26 @@ async function callHttpProvider(
         `${provider.name} 返回了空内容，请确认所选模型支持图片输入（当前模型：${provider.model}）`,
         502,
         provider.providerId,
+        provider.model,
       );
     }
     return text;
   } catch (error) {
     if (error instanceof ProviderError) throw error;
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new ProviderError(`${provider.name} 请求超时（${REQUEST_TIMEOUT_MS / 1000}s）`, 504, provider.providerId);
+      throw new ProviderError(
+        `${provider.name} 请求超时（${REQUEST_TIMEOUT_MS / 1000}s）`,
+        504,
+        provider.providerId,
+        provider.model,
+      );
     }
     const message = error instanceof Error ? error.message : '未知错误';
     throw new ProviderError(
       `${provider.name} 请求失败：${redact(message, provider.apiKey)}`,
       502,
       provider.providerId,
+      provider.model,
     );
   } finally {
     clearTimeout(timer);

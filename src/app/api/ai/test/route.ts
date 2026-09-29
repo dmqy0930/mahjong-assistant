@@ -51,7 +51,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof ProviderError) {
       return NextResponse.json(
-        { ok: false, error: error.message, providerId: error.providerId },
+        {
+          ok: false,
+          error: `${error.message}（模型 ${error.model}）`,
+          providerId: error.providerId,
+          model: error.model,
+        },
         { status: 200 },
       );
     }

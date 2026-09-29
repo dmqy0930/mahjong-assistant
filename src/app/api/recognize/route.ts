@@ -88,7 +88,12 @@ export async function POST(request: NextRequest) {
         formatProbe(probe),
       );
       return NextResponse.json(
-        { error: error.message, providerId: error.providerId, probe },
+        {
+          error: `${error.message}（模型 ${error.model}）`,
+          providerId: error.providerId,
+          model: error.model,
+          probe,
+        },
         { status: error.status >= 400 && error.status < 600 ? error.status : 502 },
       );
     }
