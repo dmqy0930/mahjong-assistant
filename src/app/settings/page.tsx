@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import {
   PROVIDER_PRESETS,
+  describeRequestTarget,
   findPreset,
   resolveProvider,
   validateProvider,
@@ -269,6 +270,9 @@ export default function SettingsPage() {
                   placeholder={preset.defaultBaseUrl || 'https://your-gateway/v1'}
                   className="w-full bg-[#0F1A15] border border-[#26382C] rounded-md px-3 py-2 text-sm text-[#EFE9DA] placeholder-[#55695B] focus:outline-none focus:border-[#C9A24B]/60"
                 />
+                <p className="text-[10px] text-[#55695B] mt-1 break-all">
+                  实际请求地址：{describeRequestTarget(resolved)}
+                </p>
               </Field>
 
               <Field label="API Key">

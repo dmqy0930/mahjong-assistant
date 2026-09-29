@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { HeaderUtils } from 'coze-coding-dev-sdk';
 import { ProviderError, runChat } from '@/lib/ai/dispatch';
-import { resolveProvider, validateProvider, type ProviderConfigInput } from '@/lib/ai/providers';
+import {
+  describeRequestTarget,
+  resolveProvider,
+  validateProvider,
+  type ProviderConfigInput,
+} from '@/lib/ai/providers';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -53,9 +58,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          error: `${error.message}（模型 ${error.model}）`,
+          error: `${error.message}（模型 ${error.model} · 地址 ${describeRequestTarget(provider)}）`,
           providerId: error.providerId,
           model: error.model,
+          endpoint: describeRequestTarget(provider),
         },
         { status: 200 },
       );

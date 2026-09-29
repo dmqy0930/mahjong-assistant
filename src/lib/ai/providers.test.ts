@@ -6,6 +6,7 @@ import {
   buildOpenAIBody,
   buildOpenAIEndpoint,
   clampTemperature,
+  describeRequestTarget,
   extractAssistantText,
   extractErrorMessage,
   parseDataUrl,
@@ -192,6 +193,26 @@ describe('resolveProvider', () => {
     const provider = resolveProvider({ providerId: 'not-exist' });
     expect(provider.providerId).toBe('custom');
     expect(provider.kind).toBe('openai-compatible');
+  });
+});
+
+describe('describeRequestTarget', () => {
+  it('DeepSeek 不带 /v1', () => {
+    expect(describeRequestTarget(resolveProvider({ providerId: 'deepseek' }))).toBe(
+      'https://api.deepseek.com/chat/completions',
+    );
+  });
+
+  it('Gemini 的密钥用占位符替换，不泄漏', () => {
+    const target = describeRequestTarget(
+      resolveProvider({ providerId: 'gemini', apiKey: 'SECRET-KEY' }),
+    );
+    expect(target).toContain('key=***');
+    expect(target).not.toContain('SECRET-KEY');
+  });
+
+  it('内置扣子不暴露地址', () => {
+    expect(describeRequestTarget(resolveProvider({ providerId: 'coze' }))).toBe('平台内置（扣子）');
   });
 });
 

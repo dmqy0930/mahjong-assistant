@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { HeaderUtils } from 'coze-coding-dev-sdk';
 import { ProviderError, runChat } from '@/lib/ai/dispatch';
 import { RECOGNIZE_SYSTEM_PROMPT, RECOGNIZE_USER_TEXT, extractJsonObject } from '@/lib/ai/prompt';
-import { resolveProvider, validateProvider, type ProviderConfigInput } from '@/lib/ai/providers';
+import {
+  describeRequestTarget,
+  resolveProvider,
+  validateProvider,
+  type ProviderConfigInput,
+} from '@/lib/ai/providers';
 import { formatProbe, sniffImage } from '@/lib/ai/image';
 
 export const runtime = 'nodejs';
@@ -89,9 +94,10 @@ export async function POST(request: NextRequest) {
       );
       return NextResponse.json(
         {
-          error: `${error.message}（模型 ${error.model}）`,
+          error: `${error.message}（模型 ${error.model} · 地址 ${describeRequestTarget(provider)}）`,
           providerId: error.providerId,
           model: error.model,
+          endpoint: describeRequestTarget(provider),
           probe,
         },
         { status: error.status >= 400 && error.status < 600 ? error.status : 502 },

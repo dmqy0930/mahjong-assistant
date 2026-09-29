@@ -248,6 +248,19 @@ export function buildGeminiEndpoint(baseUrl: string, model: string, apiKey: stri
   return `${root}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 }
 
+/**
+ * 描述这次请求真正会打到的地址，用于界面展示与报错诊断。
+ * Gemini 的密钥在 query 里，这里始终用占位符替换，避免泄漏。
+ */
+export function describeRequestTarget(provider: ResolvedProvider): string {
+  if (provider.kind === 'anthropic') return buildAnthropicEndpoint(provider.baseUrl);
+  if (provider.kind === 'gemini') {
+    return buildGeminiEndpoint(provider.baseUrl, provider.model, '***');
+  }
+  if (provider.kind === 'coze') return '平台内置（扣子）';
+  return buildOpenAIEndpoint(provider.baseUrl);
+}
+
 /** 拆解 dataURL，得到 MIME 类型与纯 base64 */
 export function parseDataUrl(dataUrl: string): { mediaType: string; data: string } {
   const matched = /^data:([^;,]+);base64,([\s\S]*)$/.exec(dataUrl);
