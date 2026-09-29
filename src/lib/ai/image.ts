@@ -63,6 +63,67 @@ export interface PreparedImage {
   sourceBytes: number;
 }
 
+export type DetectedImageType = 'jpeg' | 'png' | 'gif' | 'webp' | 'unknown';
+
+export interface ImageProbe {
+  /** dataURL 里声明的 MIME */
+  declaredType: string;
+  /** 依据字节头判断出的真实格式 */
+  detectedType: DetectedImageType;
+  bytes: number;
+  /** 前 8 个字节的十六进制，排查用 */
+  magicHex: string;
+}
+
+function headBytes(base64: string): Uint8Array {
+  // 只取头部，24 个字符 = 18 字节，且长度是 4 的倍数，满足 atob 要求
+  const head = base64.slice(0, 24);
+  if (typeof atob !== 'function') return new Uint8Array(0);
+  try {
+    const binary = atob(head);
+    const out = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+    return out;
+  } catch {
+    return new Uint8Array(0);
+  }
+}
+
+function detectType(bytes: Uint8Array): DetectedImageType {
+  const ascii = (start: number, text: string) =>
+    text.split('').every((ch, i) => bytes[start + i] === ch.charCodeAt(0));
+
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpeg';
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'png';
+  if (ascii(0, 'GIF8')) return 'gif';
+  if (ascii(0, 'RIFF') && ascii(8, 'WEBP')) return 'webp';
+  return 'unknown';
+}
+
+/**
+ * 按文件字节头判断图片真实格式。
+ * 厂商普遍按内容而非声明的 MIME 判断，所以这一步能快速定位“为什么图被拒”。
+ */
+export function sniffImage(dataUrl: string): ImageProbe {
+  const matched = /^data:([^;,]+);base64,([\s\S]*)$/.exec(dataUrl);
+  const declaredType = matched ? matched[1] : 'unknown';
+  const payload = matched ? matched[2] : dataUrl;
+  const head = headBytes(payload);
+
+  return {
+    declaredType,
+    detectedType: detectType(head),
+    bytes: estimateDataUrlBytes(dataUrl),
+    magicHex: Array.from(head.slice(0, 8))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join(''),
+  };
+}
+
+export function formatProbe(probe: ImageProbe): string {
+  return `${probe.detectedType} · ${Math.round(probe.bytes / 1024)}KB · 头字节 ${probe.magicHex || '空'}`;
+}
+
 export interface PrepareOptions {
   maxEdge?: number;
   quality?: number;

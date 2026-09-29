@@ -3,6 +3,7 @@ import { HeaderUtils } from 'coze-coding-dev-sdk';
 import { ProviderError, runChat } from '@/lib/ai/dispatch';
 import { RECOGNIZE_SYSTEM_PROMPT, RECOGNIZE_USER_TEXT, extractJsonObject } from '@/lib/ai/prompt';
 import { resolveProvider, validateProvider, type ProviderConfigInput } from '@/lib/ai/providers';
+import { formatProbe, sniffImage } from '@/lib/ai/image';
 
 export const runtime = 'nodejs';
 // 视觉识别通常需要 20~40 秒，必须显式放宽，否则会被平台默认超时掐断
@@ -28,6 +29,19 @@ export async function POST(request: NextRequest) {
   }
   if (imageBase64.length > MAX_IMAGE_CHARS) {
     return NextResponse.json({ error: '图片过大，请压缩后重试' }, { status: 413 });
+  }
+
+  // 厂商一律按文件内容判断格式，所以先按字节头自检，避免把无效数据发给上游
+  const probe = sniffImage(imageBase64);
+  if (probe.detectedType === 'unknown') {
+    console.error('[recognize] invalid image payload:', formatProbe(probe));
+    return NextResponse.json(
+      {
+        error: `收到的不是有效图片（声明 ${probe.declaredType}，字节头 ${probe.magicHex || '空'}，${Math.round(probe.bytes / 1024)}KB）。请重新选择 JPG/PNG 图片。`,
+        probe,
+      },
+      { status: 400 },
+    );
   }
 
   const provider = resolveProvider(normalizeProviderInput(body.provider));
@@ -67,9 +81,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof ProviderError) {
-      console.error(`[recognize] ${error.providerId} failed:`, error.message);
+      console.error(
+        `[recognize] ${error.providerId} failed:`,
+        error.message,
+        '| payload:',
+        formatProbe(probe),
+      );
       return NextResponse.json(
-        { error: error.message, providerId: error.providerId },
+        { error: error.message, providerId: error.providerId, probe },
         { status: error.status >= 400 && error.status < 600 ? error.status : 502 },
       );
     }

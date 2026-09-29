@@ -124,7 +124,10 @@ export default function CalculatorPage() {
       const data = await res.json();
 
       if (data.error) {
-        setError(data.error);
+        const sent = data.probe
+          ? `（本次发送：${data.probe.detectedType} · ${Math.round(data.probe.bytes / 1024)}KB）`
+          : '';
+        setError(`${data.error}${sent}`);
         return;
       }
 

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { computeTargetSize, estimateDataUrlBytes } from './image';
+import { computeTargetSize, estimateDataUrlBytes, sniffImage } from './image';
+
+const toDataUrl = (mime: string, bytes: number[]) =>
+  `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`;
 
 describe('computeTargetSize', () => {
   it('未超过上限时原样返回', () => {
@@ -55,5 +58,43 @@ describe('estimateDataUrlBytes', () => {
 
   it('空负载返回 0', () => {
     expect(estimateDataUrlBytes('data:image/jpeg;base64,')).toBe(0);
+  });
+});
+
+describe('sniffImage 字节头识别', () => {
+  it('识别 JPEG', () => {
+    const probe = sniffImage(toDataUrl('image/jpeg', [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]));
+    expect(probe.detectedType).toBe('jpeg');
+    expect(probe.declaredType).toBe('image/jpeg');
+    expect(probe.magicHex.startsWith('ffd8ff')).toBe(true);
+  });
+
+  it('识别 PNG', () => {
+    const probe = sniffImage(toDataUrl('image/png', [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    expect(probe.detectedType).toBe('png');
+  });
+
+  it('识别 GIF', () => {
+    const probe = sniffImage(toDataUrl('image/gif', [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]));
+    expect(probe.detectedType).toBe('gif');
+  });
+
+  it('识别 WEBP', () => {
+    const bytes = [
+      0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+    ];
+    expect(sniffImage(toDataUrl('image/webp', bytes)).detectedType).toBe('webp');
+  });
+
+  it('声明是 jpeg 但内容是别的格式时，以字节头为准', () => {
+    const probe = sniffImage(toDataUrl('image/jpeg', [0x00, 0x11, 0x22, 0x33, 0x44, 0x55]));
+    expect(probe.declaredType).toBe('image/jpeg');
+    expect(probe.detectedType).toBe('unknown');
+  });
+
+  it('空负载不会抛错', () => {
+    const probe = sniffImage('data:image/jpeg;base64,');
+    expect(probe.detectedType).toBe('unknown');
+    expect(probe.bytes).toBe(0);
   });
 });
