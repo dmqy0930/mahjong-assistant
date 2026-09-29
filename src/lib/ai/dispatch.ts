@@ -6,13 +6,13 @@ import {
   buildGeminiEndpoint,
   buildOpenAIBody,
   buildOpenAIEndpoint,
+  describeEmptyContent,
   extractAssistantText,
   extractErrorMessage,
   type ChatContent,
   type ResolvedProvider,
 } from './providers';
 
-const DEFAULT_MAX_TOKENS = 2048;
 const REQUEST_TIMEOUT_MS = 60_000;
 
 export class ProviderError extends Error {
@@ -33,6 +33,7 @@ export interface RunChatInput {
   systemPrompt: string;
   userText: string;
   imageDataUrl?: string;
+  /** 覆盖厂商配置里的「输出 token 限额」；不传则用 provider.maxTokens */
   maxTokens?: number;
   /** 转发给扣子平台的运行时头，仅内置厂商需要 */
   forwardHeaders?: Record<string, string>;
@@ -51,7 +52,7 @@ export async function runChat(
   input: RunChatInput,
 ): Promise<RunChatResult> {
   const startedAt = Date.now();
-  const maxTokens = input.maxTokens ?? DEFAULT_MAX_TOKENS;
+  const maxTokens = input.maxTokens ?? provider.maxTokens;
 
   const text =
     provider.kind === 'coze'
@@ -62,6 +63,7 @@ export async function runChat(
           imageDataUrl: input.imageDataUrl,
           maxTokens,
           temperature: provider.temperature,
+          thinking: provider.thinking,
         });
 
   return {
@@ -88,7 +90,11 @@ async function callCoze(provider: ResolvedProvider, input: RunChatInput): Promis
       { role: 'system' as const, content: input.systemPrompt },
       { role: 'user' as const, content: userContent },
     ],
-    { model: provider.model, temperature: provider.temperature },
+    {
+      model: provider.model,
+      temperature: provider.temperature,
+      thinking: provider.thinking ? 'enabled' : 'disabled',
+    },
   );
 
   return response.content ?? '';
@@ -125,8 +131,10 @@ async function callHttpProvider(
 
     const text = extractAssistantText(provider.kind, payload);
     if (!text) {
+      // 空正文的原因很多（推理占满预算 / 被限额截断 / 安全过滤 / 真不支持图片），
+      // 交给 describeEmptyContent 依据 finish_reason 与推理用量给出准确说法
       throw new ProviderError(
-        `${provider.name} 返回了空内容，请确认所选模型支持图片输入（当前模型：${provider.model}）`,
+        `${provider.name} 返回了空内容：${describeEmptyContent(payload, provider.model)}`,
         502,
         provider.providerId,
         provider.model,

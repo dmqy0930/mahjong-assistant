@@ -5,13 +5,20 @@ import {
   buildGeminiEndpoint,
   buildOpenAIBody,
   buildOpenAIEndpoint,
+  clampMaxTokens,
   clampTemperature,
+  describeEmptyContent,
   describeRequestTarget,
   extractAssistantText,
   extractErrorMessage,
+  extractFinishReason,
+  extractReasoningTokens,
   parseDataUrl,
   resolveProvider,
   validateProvider,
+  DEFAULT_MAX_TOKENS,
+  MAX_MAX_TOKENS,
+  MIN_MAX_TOKENS,
   PROVIDER_PRESETS,
   type ChatContent,
 } from './providers';
@@ -121,6 +128,22 @@ describe('请求体构造', () => {
       messages: { content: unknown }[];
     };
     expect(body.messages[1].content).toBe('hi');
+  });
+
+  // 推理模型会先用 reasoning tokens 思考且与 max_tokens 共享额度，
+  // 因此请求体始终显式声明 thinking，缺省为 disabled
+  it('OpenAI 兼容请求体总是携带 thinking，缺省关闭', () => {
+    const body = buildOpenAIBody('deepseek-flash', content) as {
+      thinking: { type: string };
+      max_tokens: number;
+    };
+    expect(body.thinking).toEqual({ type: 'disabled' });
+    expect(body.max_tokens).toBe(128);
+
+    const enabled = buildOpenAIBody('deepseek-flash', { ...content, thinking: true }) as {
+      thinking: { type: string };
+    };
+    expect(enabled.thinking).toEqual({ type: 'enabled' });
   });
 
   it('Anthropic 使用 base64 source 结构', () => {
@@ -238,6 +261,70 @@ describe('clampTemperature', () => {
     expect(clampTemperature(Number.NaN)).toBe(0.2);
     expect(clampTemperature(5)).toBe(2);
     expect(clampTemperature(-1)).toBe(0);
+  });
+});
+
+describe('输出 token 限额', () => {
+  it('未填写时回落到默认 8192', () => {
+    expect(resolveProvider({ providerId: 'openai' }).maxTokens).toBe(DEFAULT_MAX_TOKENS);
+    expect(DEFAULT_MAX_TOKENS).toBe(8192);
+  });
+
+  it('越界与非法值都会被收敛', () => {
+    expect(clampMaxTokens(undefined)).toBe(DEFAULT_MAX_TOKENS);
+    expect(clampMaxTokens(Number.NaN)).toBe(DEFAULT_MAX_TOKENS);
+    expect(clampMaxTokens(0)).toBe(MIN_MAX_TOKENS);
+    expect(clampMaxTokens(4096)).toBe(4096);
+    expect(clampMaxTokens(1e9)).toBe(MAX_MAX_TOKENS);
+    expect(clampMaxTokens(4096.6)).toBe(4097);
+  });
+
+  it('用户填写的限额优先于默认值', () => {
+    expect(resolveProvider({ providerId: 'deepseek', maxTokens: 4096 }).maxTokens).toBe(4096);
+  });
+});
+
+describe('思考开关', () => {
+  it('默认关闭，只有显式 true 才开启', () => {
+    expect(resolveProvider({ providerId: 'deepseek' }).thinking).toBe(false);
+    expect(resolveProvider({ providerId: 'deepseek', thinking: true }).thinking).toBe(true);
+  });
+});
+
+describe('空内容的诊断信息', () => {
+  it('推理占满预算时说明真实原因并给出两个抓手', () => {
+    const payload = {
+      choices: [{ finish_reason: 'length', message: { content: '' } }],
+      usage: { completion_tokens_details: { reasoning_tokens: 2048 } },
+    };
+    const message = describeEmptyContent(payload, 'deepseek-flash');
+    expect(message).toContain('2048');
+    expect(message).toContain('思考');
+    expect(message).toContain('输出 token 限额');
+  });
+
+  it('单纯被限额截断', () => {
+    const payload = { choices: [{ finish_reason: 'length' }] };
+    expect(describeEmptyContent(payload, 'm')).toContain('token 限额截断');
+  });
+
+  it('安全策略拦截', () => {
+    expect(describeEmptyContent({ choices: [{ finish_reason: 'content_filter' }] }, 'm')).toContain(
+      '安全策略',
+    );
+  });
+
+  it('无从判断时回落到"确认是否支持图片"', () => {
+    expect(describeEmptyContent(null, 'gpt-4o-mini')).toContain('支持图片输入');
+    expect(describeEmptyContent(null, 'gpt-4o-mini')).toContain('gpt-4o-mini');
+  });
+
+  it('能识别各家不同的结束原因与推理用量字段', () => {
+    expect(extractFinishReason({ stop_reason: 'max_tokens' })).toBe('max_tokens');
+    expect(extractFinishReason({ candidates: [{ finishReason: 'MAX_TOKENS' }] })).toBe('MAX_TOKENS');
+    expect(extractReasoningTokens({ usage: { reasoning_tokens: 12 } })).toBe(12);
+    expect(extractReasoningTokens({ usage: { output_tokens_details: { reasoning_tokens: 34 } } })).toBe(34);
+    expect(extractReasoningTokens({ usage: {} })).toBe(0);
   });
 });
 

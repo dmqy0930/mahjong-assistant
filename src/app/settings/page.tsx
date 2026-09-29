@@ -15,12 +15,18 @@ import {
   Trash2,
 } from 'lucide-react';
 import {
+  DEFAULT_MAX_TOKENS,
+  MAX_MAX_TOKENS,
+  MIN_MAX_TOKENS,
   PROVIDER_PRESETS,
   describeRequestTarget,
   findPreset,
   resolveProvider,
   validateProvider,
+  type ProviderConfigInput,
+  type ProviderPreset,
 } from '@/lib/ai/providers';
+import { Switch } from '@/components/ui/switch';
 import {
   DEFAULT_AI_SETTINGS,
   getActiveProviderConfig,
@@ -37,6 +43,8 @@ interface Draft {
   apiKey: string;
   model: string;
   temperature: number;
+  maxTokens: number;
+  thinking: boolean;
 }
 
 interface TestResult {
@@ -45,10 +53,23 @@ interface TestResult {
   detail?: string;
 }
 
+function draftFrom(config: ProviderConfigInput | undefined, preset: ProviderPreset): Draft {
+  return {
+    baseUrl: config?.baseUrl ?? preset.defaultBaseUrl,
+    apiKey: config?.apiKey ?? '',
+    model: config?.model ?? preset.defaultModel,
+    temperature: config?.temperature ?? 0.2,
+    maxTokens: config?.maxTokens ?? DEFAULT_MAX_TOKENS,
+    thinking: config?.thinking ?? false,
+  };
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AiSettings>(DEFAULT_AI_SETTINGS);
   const [selectedId, setSelectedId] = useState('coze');
-  const [draft, setDraft] = useState<Draft>({ baseUrl: '', apiKey: '', model: '', temperature: 0.2 });
+  const [draft, setDraft] = useState<Draft>(() =>
+    draftFrom(undefined, PROVIDER_PRESETS[0]),
+  );
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
@@ -64,13 +85,7 @@ export default function SettingsPage() {
 
   // 切换厂商时，用已保存配置或预设默认值填充表单
   useEffect(() => {
-    const config = settings.configs[selectedId];
-    setDraft({
-      baseUrl: config?.baseUrl ?? preset.defaultBaseUrl,
-      apiKey: config?.apiKey ?? '',
-      model: config?.model ?? preset.defaultModel,
-      temperature: config?.temperature ?? 0.2,
-    });
+    setDraft(draftFrom(settings.configs[selectedId], preset));
     setTestResult(null);
     setNotice(null);
     setShowKey(false);
@@ -108,12 +123,7 @@ export default function SettingsPage() {
 
   const handleDelete = () => {
     persist(removeProviderConfig(settings, selectedId), '已清除该厂商配置');
-    setDraft({
-      baseUrl: preset.defaultBaseUrl,
-      apiKey: '',
-      model: preset.defaultModel,
-      temperature: 0.2,
-    });
+    setDraft(draftFrom(undefined, preset));
   };
 
   const handleTest = async () => {
@@ -346,6 +356,36 @@ export default function SettingsPage() {
             />
           </Field>
 
+          <Field label="思考">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[10px] text-[#55695B] leading-relaxed">
+                开启后模型会先做推理再回答。推理 token 与「输出 token 限额」共享额度，
+                推理模型（如 deepseek-flash）开着容易把预算用光导致正文为空，建议保持关闭。
+              </p>
+              <Switch
+                checked={draft.thinking}
+                onCheckedChange={value => setDraft(prev => ({ ...prev, thinking: value }))}
+                aria-label="思考开关"
+              />
+            </div>
+          </Field>
+
+          <Field label="输出 token 限额">
+            <input
+              type="number"
+              min={MIN_MAX_TOKENS}
+              max={MAX_MAX_TOKENS}
+              step={256}
+              value={draft.maxTokens}
+              onChange={e => setDraft(prev => ({ ...prev, maxTokens: Number(e.target.value) }))}
+              className="w-full bg-[#0F1A15] border border-[#26382C] rounded-md px-3 py-2 text-sm text-[#EFE9DA] placeholder-[#55695B] focus:outline-none focus:border-[#C9A24B]/60"
+            />
+            <p className="text-[10px] text-[#55695B] mt-1">
+              请求里的 max_tokens（思考与正文共享）。默认 {DEFAULT_MAX_TOKENS}，范围{' '}
+              {MIN_MAX_TOKENS}~{MAX_MAX_TOKENS}，实际生效 {resolved.maxTokens}。
+            </p>
+          </Field>
+
           {problems.length > 0 && (
             <p className="text-xs text-[#C4463A]">还缺：{problems.join('、')}</p>
           )}
@@ -426,6 +466,14 @@ function CurrentSummary({ settings }: { settings: AiSettings }) {
       <div className="flex justify-between gap-4">
         <span className="text-[#9FAF9E]">模型</span>
         <span className="text-[#EFE9DA] text-right break-all">{resolved.model || '—'}</span>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span className="text-[#9FAF9E]">输出 token 限额</span>
+        <span className="text-[#EFE9DA] text-right">{resolved.maxTokens}</span>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span className="text-[#9FAF9E]">思考</span>
+        <span className="text-[#EFE9DA] text-right">{resolved.thinking ? '开启' : '关闭'}</span>
       </div>
       {resolved.baseUrl && (
         <div className="flex justify-between gap-4">
