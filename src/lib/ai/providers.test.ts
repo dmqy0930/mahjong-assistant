@@ -201,8 +201,12 @@ describe('厂商预设', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('至少提供一个不支持图片的厂商标注，用于界面提醒', () => {
-    expect(PROVIDER_PRESETS.filter(p => !p.supportsVision).length).toBeGreaterThan(0);
+  // 回归用例：DeepSeek 的旧型号名已退役，deepseek-flash 才是当前支持图片输入的模型
+  it('DeepSeek 预设使用 deepseek-flash 并标记支持图片', () => {
+    const deepseek = PROVIDER_PRESETS.find(p => p.id === 'deepseek');
+    expect(deepseek?.defaultModel).toBe('deepseek-flash');
+    expect(deepseek?.models).toContain('deepseek-flash');
+    expect(deepseek?.supportsVision).toBe(true);
   });
 });
 
