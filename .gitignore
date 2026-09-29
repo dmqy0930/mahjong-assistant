@@ -106,7 +106,9 @@ out/
 coverage/
 *.lcov
 .nyc_output
-# Environment variables
+# Environment variables：默认忽略所有 .env*，只保留示例模板
+.env*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
