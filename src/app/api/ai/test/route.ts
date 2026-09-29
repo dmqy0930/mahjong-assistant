@@ -4,6 +4,7 @@ import { ProviderError, runChat } from '@/lib/ai/dispatch';
 import { resolveProvider, validateProvider, type ProviderConfigInput } from '@/lib/ai/providers';
 
 export const runtime = 'nodejs';
+export const maxDuration = 30;
 
 const TEST_SYSTEM_PROMPT = '你是一个连通性测试助手，请严格按要求回答。';
 

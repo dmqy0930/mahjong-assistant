@@ -10,6 +10,7 @@ import { analyzeHand } from '@/lib/mahjong/hand';
 import { createTile, sortTiles } from '@/lib/mahjong/tile-utils';
 import { resolveProvider } from '@/lib/ai/providers';
 import { getActiveProviderConfig, loadAiSettings } from '@/lib/ai/storage';
+import { prepareImageForUpload } from '@/lib/ai/image';
 import { TileDisplay } from '@/components/calculator/TileDisplay';
 import { TilePicker } from '@/components/calculator/TilePicker';
 
@@ -87,6 +88,7 @@ export default function CalculatorPage() {
   const [showTilePicker, setShowTilePicker] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<'hand' | 'dora' | 'win'>('hand');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageInfo, setImageInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aiLabel, setAiLabel] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -102,59 +104,61 @@ export default function CalculatorPage() {
   // Handle image upload
   const handleImageUpload = useCallback(async (file: File) => {
     setError(null);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = e.target?.result as string;
-      setImagePreview(base64);
-      setIsRecognizing(true);
+    setIsRecognizing(true);
 
-      try {
-        const provider = getActiveProviderConfig(loadAiSettings());
-        const res = await fetch('/api/recognize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: base64, provider }),
-        });
-        const data = await res.json();
+    try {
+      // 上传前统一转成 JPEG 并压缩：兼容 HEIC/AVIF，同时绕开 Vercel 的 4.5MB 请求体上限
+      const prepared = await prepareImageForUpload(file);
+      setImagePreview(prepared.dataUrl);
+      setImageInfo(
+        `${prepared.mediaType} · ${Math.round(prepared.bytes / 1024)}KB · ${prepared.width}×${prepared.height}` +
+          (prepared.converted ? `（原图 ${prepared.sourceType || '未知'}，已转码）` : ''),
+      );
 
-        if (data.error) {
-          setError(data.error);
-          return;
-        }
+      const provider = getActiveProviderConfig(loadAiSettings());
+      const res = await fetch('/api/recognize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: prepared.dataUrl, provider }),
+      });
+      const data = await res.json();
 
-        // Parse recognition result
-        if (data.handTiles) {
-          const tiles: Tile[] = sortTiles(
-            data.handTiles.map((t: { suit: string; rank: number; isRed?: boolean }) =>
-              createTile(t.suit as Tile['suit'], t.rank, t.isRed || false),
-            ),
-          );
-          const recognizedWin =
-            data.winTile &&
-            tiles.find(
-              (t: Tile) => t.suit === data.winTile.suit && t.rank === data.winTile.rank,
-            );
-          const winTile: Tile | null = recognizedWin ?? tiles[tiles.length - 1] ?? null;
-          const indicators: { suit: string; rank: number }[] =
-            data.doraIndicators ?? data.doraTiles ?? [];
-          setState(prev => ({
-            ...prev,
-            handTiles: tiles,
-            winTile,
-            winTileId: winTile?.id ?? null,
-            winType: data.winType || 'normal',
-            isTsumo: data.isTsumo || false,
-            isMenzen: data.isMenzen !== false,
-            doraTiles: indicators.map(t => createTile(t.suit as Tile['suit'], t.rank)),
-          }));
-        }
-      } catch {
-        setError('识别失败，请手动输入牌面');
-      } finally {
-        setIsRecognizing(false);
+      if (data.error) {
+        setError(data.error);
+        return;
       }
-    };
-    reader.readAsDataURL(file);
+
+      // Parse recognition result
+      if (data.handTiles) {
+        const tiles: Tile[] = sortTiles(
+          data.handTiles.map((t: { suit: string; rank: number; isRed?: boolean }) =>
+            createTile(t.suit as Tile['suit'], t.rank, t.isRed || false),
+          ),
+        );
+        const recognizedWin =
+          data.winTile &&
+          tiles.find(
+            (t: Tile) => t.suit === data.winTile.suit && t.rank === data.winTile.rank,
+          );
+        const winTile: Tile | null = recognizedWin ?? tiles[tiles.length - 1] ?? null;
+        const indicators: { suit: string; rank: number }[] =
+          data.doraIndicators ?? data.doraTiles ?? [];
+        setState(prev => ({
+          ...prev,
+          handTiles: tiles,
+          winTile,
+          winTileId: winTile?.id ?? null,
+          winType: data.winType || 'normal',
+          isTsumo: data.isTsumo || false,
+          isMenzen: data.isMenzen !== false,
+          doraTiles: indicators.map(t => createTile(t.suit as Tile['suit'], t.rank)),
+        }));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '识别失败，请手动输入牌面');
+    } finally {
+      setIsRecognizing(false);
+    }
   }, []);
 
   // Add tile to hand
@@ -365,6 +369,7 @@ export default function CalculatorPage() {
               )}
             </div>
           )}
+          {imageInfo && <p className="mt-2 text-[10px] text-[#9FAF9E]">已上传：{imageInfo}</p>}
           {error && <p className="mt-2 text-xs text-[#C4463A]">{error}</p>}
         </section>
 

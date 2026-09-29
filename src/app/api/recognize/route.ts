@@ -5,8 +5,11 @@ import { RECOGNIZE_SYSTEM_PROMPT, RECOGNIZE_USER_TEXT, extractJsonObject } from 
 import { resolveProvider, validateProvider, type ProviderConfigInput } from '@/lib/ai/providers';
 
 export const runtime = 'nodejs';
+// 视觉识别通常需要 20~40 秒，必须显式放宽，否则会被平台默认超时掐断
+export const maxDuration = 60;
 
-const MAX_IMAGE_CHARS = 8 * 1024 * 1024; // 约 8MB 的 base64
+// 客户端已统一压缩为 JPEG，这里按 Vercel 的 4.5MB 请求体上限留出余量
+const MAX_IMAGE_CHARS = 4 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   let body: { imageBase64?: unknown; provider?: unknown };
