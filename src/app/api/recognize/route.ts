@@ -121,5 +121,7 @@ function normalizeProviderInput(input: unknown): ProviderConfigInput {
     apiKey: str(raw.apiKey),
     model: str(raw.model),
     temperature: num(raw.temperature),
+    maxTokens: num(raw.maxTokens),
+    thinking: typeof raw.thinking === 'boolean' ? raw.thinking : undefined,
   };
 }

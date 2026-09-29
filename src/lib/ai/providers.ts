@@ -19,6 +19,11 @@ export interface ProviderPreset {
   note?: string;
 }
 
+/** 输出 token 上限（max_tokens）默认值与边界；推理模型的思考与正文共享此额度 */
+export const DEFAULT_MAX_TOKENS = 8192;
+export const MIN_MAX_TOKENS = 256;
+export const MAX_MAX_TOKENS = 65536;
+
 /** 自定义网关兜底预设 */
 export const CUSTOM_PRESET: ProviderPreset = {
   id: 'custom',
@@ -95,7 +100,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     supportsVision: true,
     requiresApiKey: true,
     apiKeyUrl: 'https://platform.deepseek.com/api_keys',
-    note: 'deepseek-flash 支持图片输入（JPEG/PNG/GIF/WebP）。同厂的 deepseek-v4-pro 为纯文本模型、不接受图片，如需使用请手动填写模型名。',
+    note: 'deepseek-flash 支持图片输入（JPEG/PNG/GIF/WebP）。同厂的 deepseek-v4-pro 为纯文本模型、不接受图片，如需使用请手动填写模型名。该模型为推理模型，默认关闭「思考」，否则推理会占满输出预算导致正文为空。',
   },
   {
     id: 'moonshot',
@@ -147,6 +152,10 @@ export interface ProviderConfigInput {
   apiKey?: string;
   model?: string;
   temperature?: number;
+  /** 输出 token 上限，对应请求里的 max_tokens；缺省用 DEFAULT_MAX_TOKENS */
+  maxTokens?: number;
+  /** 是否允许模型先做思考（reasoning）。默认关闭，避免思考占满输出预算 */
+  thinking?: boolean;
 }
 
 /** 补齐默认值后的可用配置 */
@@ -158,6 +167,8 @@ export interface ResolvedProvider {
   apiKey: string;
   model: string;
   temperature: number;
+  maxTokens: number;
+  thinking: boolean;
   supportsVision: boolean;
 }
 
@@ -172,6 +183,8 @@ export function resolveProvider(input: ProviderConfigInput): ResolvedProvider {
     apiKey,
     model: (input.model ?? '').trim() || preset.defaultModel,
     temperature: clampTemperature(input.temperature),
+    maxTokens: clampMaxTokens(input.maxTokens),
+    thinking: input.thinking === true,
     supportsVision: preset.supportsVision,
   };
 }
@@ -179,6 +192,12 @@ export function resolveProvider(input: ProviderConfigInput): ResolvedProvider {
 export function clampTemperature(value: number | undefined): number {
   if (typeof value !== 'number' || Number.isNaN(value)) return 0.2;
   return Math.min(2, Math.max(0, value));
+}
+
+/** 输出 token 上限：非法值回落到默认，越界收敛到边界 */
+export function clampMaxTokens(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_MAX_TOKENS;
+  return Math.min(MAX_MAX_TOKENS, Math.max(MIN_MAX_TOKENS, Math.round(value)));
 }
 
 /** 配置是否可用于发起请求（返回缺失项列表，空数组表示可保存） */
@@ -274,6 +293,8 @@ export interface ChatContent {
   imageDataUrl?: string;
   maxTokens: number;
   temperature: number;
+  /** 是否允许思考；缺省视为关闭 */
+  thinking?: boolean;
 }
 
 export function buildOpenAIBody(model: string, content: ChatContent): unknown {
@@ -288,6 +309,10 @@ export function buildOpenAIBody(model: string, content: ChatContent): unknown {
     model,
     temperature: content.temperature,
     max_tokens: content.maxTokens,
+    // 推理模型会先用 reasoning tokens 思考，且与 max_tokens 共享额度；
+    // 这里始终显式声明，默认关闭思考，避免"思考吃满预算、正文为空"。
+    // 不认识该字段的网关按 OpenAI 协议通常会忽略它。
+    thinking: { type: content.thinking ? 'enabled' : 'disabled' },
     messages: [
       { role: 'system', content: content.systemPrompt },
       { role: 'user', content: userContent },
@@ -378,4 +403,63 @@ export function extractErrorMessage(payload: unknown, fallback: string): string 
   const message =
     asString(error?.message) || asString(root.message) || asString(root.msg) || asString(root.detail);
   return message || fallback;
+}
+
+/** 结束原因：兼容 OpenAI(finish_reason) / Anthropic(stop_reason) / Gemini(finishReason) */
+export function extractFinishReason(payload: unknown): string {
+  const root = asRecord(payload);
+  if (!root) return '';
+  return (
+    asString(asRecord(asArray(root.choices)[0])?.finish_reason) ||
+    asString(root.stop_reason) ||
+    asString(asRecord(asArray(root.candidates)[0])?.finishReason)
+  );
+}
+
+/** 推理消耗的 token 数；各厂商字段位置不一，逐处兜底 */
+export function extractReasoningTokens(payload: unknown): number {
+  const usage = asRecord(asRecord(payload)?.usage);
+  if (!usage) return 0;
+  const candidates = [
+    asRecord(usage.completion_tokens_details)?.reasoning_tokens,
+    asRecord(usage.output_tokens_details)?.reasoning_tokens,
+    usage.reasoning_tokens,
+  ];
+  for (const value of candidates) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+  }
+  return 0;
+}
+
+const TRUNCATED_REASONS = new Set(['length', 'max_tokens', 'MAX_TOKENS']);
+const FILTERED_REASONS = new Set([
+  'content_filter',
+  'refusal',
+  'SAFETY',
+  'PROHIBITED_CONTENT',
+  'RECITATION',
+]);
+
+/**
+ * 响应没有正文时，依据 finish_reason 与推理 token 用量给出真实原因，
+ * 而不是一律甩锅给"模型不支持图片"。
+ */
+export function describeEmptyContent(payload: unknown, model: string): string {
+  const reasoningTokens = extractReasoningTokens(payload);
+  const finishReason = extractFinishReason(payload);
+  const truncated = TRUNCATED_REASONS.has(finishReason);
+
+  if (reasoningTokens > 0 && truncated) {
+    return `模型先用 ${reasoningTokens} 个推理 token 把输出预算占满，没留出正文。请在「API 配置」中关闭「思考」或提高「输出 token 限额」`;
+  }
+  if (reasoningTokens > 0) {
+    return `模型消耗了 ${reasoningTokens} 个推理 token 后仍未输出正文，请在「API 配置」中关闭「思考」或提高「输出 token 限额」`;
+  }
+  if (truncated) {
+    return `输出被 token 限额截断（${finishReason}）且没有正文，请在「API 配置」中提高「输出 token 限额」`;
+  }
+  if (FILTERED_REASONS.has(finishReason)) {
+    return `厂商的安全策略拦截了本次输出（${finishReason}），请更换图片或模型`;
+  }
+  return `请确认所选模型支持图片输入（当前模型：${model}）`;
 }
