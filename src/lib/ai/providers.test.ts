@@ -23,6 +23,19 @@ describe('endpoint 构造', () => {
     );
   });
 
+  // 回归用例：DeepSeek 的接口挂在根路径下，不能被自动补成 /v1
+  it('DeepSeek 只有域名时不补 /v1', () => {
+    expect(buildOpenAIEndpoint('https://api.deepseek.com')).toBe(
+      'https://api.deepseek.com/chat/completions',
+    );
+  });
+
+  it('其他主机只有域名时也保持原样', () => {
+    expect(buildOpenAIEndpoint('https://gw.example.com')).toBe(
+      'https://gw.example.com/chat/completions',
+    );
+  });
+
   it('已带 /v1 时直接拼接', () => {
     expect(buildOpenAIEndpoint('https://api.deepseek.com/v1')).toBe(
       'https://api.deepseek.com/v1/chat/completions',
@@ -88,6 +101,18 @@ describe('请求体构造', () => {
       { type: 'text', text: 'hi' },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } },
     ]);
+  });
+
+  // 固化与厂商文档一致的消息结构，防止后续重构改坏
+  it('消息结构与厂商文档一致：system 消息 + 用户消息内的 text/image_url 块', () => {
+    const body = buildOpenAIBody('deepseek-flash', content) as {
+      messages: { role: string; content: unknown }[];
+    };
+    expect(body.messages).toHaveLength(2);
+    expect(body.messages.map(m => m.role)).toEqual(['system', 'user']);
+
+    const userContent = body.messages[1].content as { type: string }[];
+    expect(userContent.map(part => part.type)).toEqual(['text', 'image_url']);
   });
 
   it('无图片时 OpenAI content 退化为字符串', () => {

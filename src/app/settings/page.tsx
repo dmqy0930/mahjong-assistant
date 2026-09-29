@@ -81,6 +81,12 @@ export default function SettingsPage() {
   );
   const problems = useMemo(() => validateProvider(resolved), [resolved]);
 
+  // 已保存的旧配置会覆盖预设默认值，这里提示用户手动切回推荐值
+  const differsFromPreset =
+    preset.kind !== 'coze' &&
+    ((preset.defaultBaseUrl !== '' && draft.baseUrl !== preset.defaultBaseUrl) ||
+      (preset.defaultModel !== '' && draft.model !== preset.defaultModel));
+
   const persist = useCallback(
     (next: AiSettings, message: string) => {
       const ok = saveAiSettings(next);
@@ -230,6 +236,27 @@ export default function SettingsPage() {
             <p className="text-[10px] text-[#9FAF9E] leading-relaxed bg-[#0F1A15] rounded p-2">
               {preset.note}
             </p>
+          )}
+
+          {differsFromPreset && (
+            <div className="flex items-center justify-between gap-2 rounded-md border border-[#C9A24B]/30 bg-[#C9A24B]/10 px-2.5 py-2">
+              <span className="text-[10px] text-[#C9A24B] leading-relaxed">
+                当前填写值与推荐值不同，可能是之前保存的旧配置
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setDraft(prev => ({
+                    ...prev,
+                    baseUrl: preset.defaultBaseUrl,
+                    model: preset.defaultModel,
+                  }))
+                }
+                className="shrink-0 px-2 py-1 rounded bg-[#C9A24B] text-[#0F1A15] text-[10px] font-medium"
+              >
+                使用推荐值
+              </button>
+            </div>
           )}
 
           {preset.kind !== 'coze' && (

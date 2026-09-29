@@ -88,7 +88,8 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     name: 'DeepSeek',
     vendor: '深度求索',
     kind: 'openai-compatible',
-    defaultBaseUrl: 'https://api.deepseek.com/v1',
+    // 官方文档（OpenAI 兼容）给的 base_url 就是不带版本的根地址
+    defaultBaseUrl: 'https://api.deepseek.com',
     defaultModel: 'deepseek-flash',
     models: ['deepseek-flash'],
     supportsVision: true,
@@ -193,17 +194,30 @@ export function validateProvider(provider: ResolvedProvider): string[] {
   return problems;
 }
 
-/** 只有域名、没有路径时补上 /v1，避免用户少写一段导致 404 */
+/**
+ * 需要补 /v1 的主机白名单。
+ * 只有这些服务把接口挂在 /v1 根路径下；其余服务一律按用户填写的原样使用，
+ * 避免"贴心补全"把正确的地址改错（例如 DeepSeek 的接口就在根路径下）。
+ */
+const V1_HOSTS = new Set(['api.openai.com']);
+
+/** 只有域名、且属于已知需要 /v1 的服务时才补上 */
 export function normalizeOpenAIBase(baseUrl: string): string {
   let base = baseUrl.trim().replace(/\/+$/, '');
   if (!base) return base;
   if (/\/chat\/completions$/.test(base)) {
     base = base.replace(/\/chat\/completions$/, '');
   }
-  if (hasNoPath(base)) {
-    return `${base}/v1`;
-  }
+  if (hasNoPath(base) && V1_HOSTS.has(hostOf(base))) return `${base}/v1`;
   return base;
+}
+
+function hostOf(base: string): string {
+  try {
+    return new URL(base).host;
+  } catch {
+    return '';
+  }
 }
 
 function hasNoPath(base: string): boolean {
