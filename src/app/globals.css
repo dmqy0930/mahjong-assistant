@@ -1,0 +1,248 @@
+@import url('https://fonts.googleapis.cn/css2?family=Noto+Serif+JP:wght@400;500;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-vermillion: #C4463A;
+  --color-gold: #C9A24B;
+  --color-washi: #EFE9DA;
+  --color-sumi: #0F1A15;
+  --color-tan: #17251D;
+  --color-moss: #5B8C5A;
+  --color-ivory: #F6F1E4;
+  --color-ink-gray: #9FAF9E;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --font-sans:
+    'Noto Sans JP', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif:
+    'Noto Serif JP', 'Songti SC', 'SimSun', ui-serif, Georgia, serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* 日麻主题：绿绒牌桌 + 象牙牌面 + 金/朱红点缀（默认深色） */
+:root {
+  --radius: 0.5rem;
+  --background: #0F1A15;
+  --foreground: #EFE9DA;
+  --card: #17251D;
+  --card-foreground: #EFE9DA;
+  --popover: #17251D;
+  --popover-foreground: #EFE9DA;
+  --primary: #C4463A;
+  --primary-foreground: #F6F1E4;
+  --secondary: #26382C;
+  --secondary-foreground: #EFE9DA;
+  --muted: #26382C;
+  --muted-foreground: #9FAF9E;
+  --accent: #C9A24B;
+  --accent-foreground: #0F1A15;
+  --destructive: #C4463A;
+  --border: #26382C;
+  --input: #26382C;
+  --ring: #C9A24B;
+  --chart-1: #C4463A;
+  --chart-2: #5B8C5A;
+  --chart-3: #C9A24B;
+  --chart-4: #6B8CAE;
+  --chart-5: #AE6B8C;
+  --sidebar: #101F18;
+  --sidebar-foreground: #EFE9DA;
+  --sidebar-primary: #C4463A;
+  --sidebar-primary-foreground: #F6F1E4;
+  --sidebar-accent: #26382C;
+  --sidebar-accent-foreground: #EFE9DA;
+  --sidebar-border: #26382C;
+  --sidebar-ring: #C9A24B;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+
+    font-family: var(--font-sans);
+
+    /* 绿绒牌桌质感：顶部灯光 + 暗角 */
+    background-image:
+      radial-gradient(120% 80% at 50% 0%, rgb(201 162 75 / 6%), transparent 60%),
+      radial-gradient(100% 100% at 50% 50%, #142019 0%, #0f1a15 72%);
+    background-attachment: fixed;
+  }
+}
+
+/* Mahjong tile styles */
+.tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 3.25rem;
+  background: linear-gradient(145deg, #F6F1E4, #EFE9DA);
+  border-radius: 0.375rem;
+  border: 1px solid #cfc8b4;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 30%), inset 0 1px 0 rgb(255 255 255 / 30%);
+  font-weight: 700;
+  font-size: 0.875rem;
+  line-height: 1;
+  user-select: none;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tile:active {
+  transform: scale(0.95);
+}
+
+.tile-small {
+  width: 1.75rem;
+  height: 2.25rem;
+  font-size: 0.7rem;
+  border-radius: 0.25rem;
+}
+
+.tile-medium {
+  width: 2rem;
+  height: 2.75rem;
+  font-size: 0.8rem;
+}
+
+.tile-man { color: #C4463A; }
+.tile-pin { color: #2C6CA8; }
+.tile-sou { color: #2F8B4C; }
+.tile-haku { color: #2C6CA8; }
+.tile-hatsu { color: #2F8B4C; }
+.tile-chun { color: #C4463A; }
+.tile-wind { color: #0F1A15; }
+
+.tile-red {
+  border-color: #C4463A;
+  box-shadow: 0 2px 4px rgb(196 70 58 / 30%), inset 0 1px 0 rgb(255 255 255 / 30%);
+}
+
+.tile-red::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  background: #C4463A;
+  border-radius: 50%;
+}
+
+.tile-back {
+  background: linear-gradient(145deg, #1F5138, #17402C);
+  border-color: #17402C;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 40%);
+}
+
+.tile-selected {
+  box-shadow: 0 0 0 2px #C9A24B, 0 2px 4px rgb(0 0 0 / 30%);
+  transform: translateY(-4px);
+}
+
+/* Seigaiha pattern (wave pattern) */
+.pattern-seigaiha {
+  background-image: radial-gradient(circle at 50% 100%, transparent 50%, rgb(201 162 75 / 5%) 50%, rgb(201 162 75 / 5%) 55%, transparent 55%),
+    radial-gradient(circle at 0% 50%, transparent 50%, rgb(201 162 75 / 5%) 50%, rgb(201 162 75 / 5%) 55%, transparent 55%);
+  background-size: 30px 15px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #17251D;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #31473A;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #55695B;
+}
+
+/* Animation for page transitions */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Button glow effect */
+.btn-vermillion {
+  background: #C4463A;
+  color: #F6F1E4;
+  transition: all 0.2s ease-out;
+}
+
+.btn-vermillion:hover {
+  background: #D4564A;
+  box-shadow: 0 0 12px rgb(196 70 58 / 40%);
+}
+
+/* Gold accent */
+.text-gold {
+  color: #C9A24B;
+}
+
+.bg-gold {
+  background: #C9A24B;
+}

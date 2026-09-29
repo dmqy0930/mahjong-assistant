@@ -1,0 +1,42 @@
+import type { Term } from './types';
+
+export const TERMS: Term[] = [
+  // 基础术语
+  { id: 'menzen', term: '门清', termJp: '門前清', category: '基础', description: '没有进行任何副露（吃、碰、明杠）的状态。门清时可以立直，部分役种有门清限定。' },
+  { id: 'furo', term: '副露', termJp: '副露', category: '基础', description: '通过吃、碰、明杠将他人的牌纳入自己手牌组成面子的行为。副露后不能立直。' },
+  { id: 'dora', term: '宝牌', termJp: 'ドラ', category: '基础', description: '宝牌指示牌的下一张牌。每张宝牌加1番，但不构成役。宝牌指示牌在牌山中翻开显示。' },
+  { id: 'ura_dora', term: '里宝牌', termJp: '裏ドラ', category: '基础', description: '表宝牌指示牌正下方的牌为里宝牌指示牌。仅立直和牌时才能计算里宝牌。' },
+  { id: 'aka_dora', term: '赤宝牌', termJp: '赤ドラ', category: '基础', description: '红色标记的数牌（通常为5万、5筒、5索各一张红牌），效果等同于宝牌，每张加1番。' },
+  { id: 'furiten', term: '振听', termJp: '振り聴', category: '基础', description: '自己曾打出的牌中包含可以和的牌，则不能荣和，只能自摸。分为舍牌振听、同巡振听、立直后振听三种。' },
+  { id: 'ippatsu', term: '一发', termJp: '一発', category: '基础', description: '立直后，在自己第一次摸牌前（无人副露的情况下）和牌，追加1番。' },
+  { id: 'rinshan', term: '岭上开花', termJp: '嶺上開花', category: '基础', description: '开杠后从岭上牌区摸牌并和牌。1番。' },
+  { id: 'haitei', term: '海底捞月', termJp: '海底摸月', category: '基础', description: '自摸牌山最后一张牌并和牌。1番。' },
+  { id: 'houtei', term: '河底捞鱼', termJp: '河底撈魚', category: '基础', description: '荣和他人打出的最后一张牌。1番。' },
+  { id: 'ryuukyoku', term: '流局', termJp: '流局', category: '基础', description: '牌山摸完无人和牌，或四人立直/四人打出相同风牌第一张等情况。流局时听牌者需罚符。' },
+  { id: 'kyoutaku', term: '供托', termJp: '供託', category: '基础', description: '立直时放在桌上的1000点立直棒。和牌者可以获得所有供托。流局时立直棒留在桌上。' },
+  { id: 'honba', term: '本场', termJp: '本場', category: '基础', description: '连续庄家时的计数器。每有1本场，和牌点数增加300点（自摸每人多100点）。流局或庄家连庄时+1。' },
+  { id: 'riichi', term: '立直', termJp: 'リーチ', category: '役种', description: '门清状态下报听，放置1000点立直棒。1番。可以开里宝牌、有一发机会。' },
+  { id: 'tanyao', term: '断幺九', termJp: '断幺九', category: '役种', description: '手牌全部由2-8的数牌组成，无字牌、无幺九牌。1番，可副露。' },
+  { id: 'pinfu', term: '平和', termJp: '平和', category: '役种', description: '门清、全部为顺子、雀头非役牌、两面听牌。1番，门清限定。平和自摸为20符（非30符）。' },
+  { id: 'tsumo', term: '自摸', termJp: 'ツモ', category: '基础', description: '自己从牌山摸到需要的牌而和牌。门清时可获得门清自摸1番。' },
+  { id: 'ron', term: '荣和', termJp: 'ロン', category: '基础', description: '他人打出的牌使自己和牌。放铳者（打出牌的人）支付全部点数。' },
+  { id: 'agari', term: '和牌', termJp: '和了（アガリ）', category: '基础', description: '手牌满足和牌条件，结束本局。需要至少1番才能和牌。' },
+  { id: 'tenpai', term: '听牌', termJp: '聴牌（テンパイ）', category: '基础', description: '手牌差一张即可和牌的状态。流局时听牌者从不听牌者处收取罚符（1000/2000点）。' },
+  { id: 'noten', term: '不听', termJp: '不聴（ノーテン）', category: '基础', description: '流局时手牌未听牌。不听者需要向听牌者支付罚符。' },
+  { id: 'nagashi_mangan', term: '流听满贯', termJp: '流し満貫', category: '特殊', description: '流局时自己全部舍牌都是幺九牌，且无人鸣牌。视为满贯。' },
+  { id: 'kuikae', term: '食替', termJp: '喰い替え', category: '规则', description: '副露后打出与副露相关的牌。部分规则禁止（如碰了1万后不能立刻打1万）。' },
+  { id: 'atozuke', term: '后付', termJp: '後付け', category: '规则', description: '副露时手牌尚无役，但和牌时能获得役。部分规则允许，部分禁止。' },
+  { id: 'kandora', term: '杠宝牌', termJp: '槓ドラ', category: '基础', description: '开杠后翻开的额外宝牌指示牌。每次开杠翻一张，最多4张。' },
+  { id: 'janto', term: '雀头', termJp: '雀頭（ジャントウ）', category: '基础', description: '和牌时需要的对子（将牌）。一般型需要4面子+1雀头。' },
+  { id: 'mentsu', term: '面子', termJp: '面子（メンツ）', category: '基础', description: '顺子（3张连续数牌）、刻子（3张相同牌）、杠子（4张相同牌）的总称。和牌需要4面子。' },
+  { id: 'chi', term: '吃', termJp: 'チー', category: '基础', description: '用上家的舍牌组成顺子的副露行为。只能吃上家的牌。' },
+  { id: 'pon', term: '碰', termJp: 'ポン', category: '基础', description: '用任何人的舍牌组成刻子的副露行为。优先级高于吃。' },
+  { id: 'kan', term: '杠', termJp: 'カン', category: '基础', description: '组成4张相同牌的面子。分大明杠、暗杠、加杠三种。开杠后从岭上摸一张牌。' },
+  { id: 'ankan', term: '暗杠', termJp: '暗カン', category: '基础', description: '手牌中有4张相同牌时开杠。保持门清状态，可开里宝牌。' },
+  { id: 'minkan', term: '明杠', termJp: '明カン', category: '基础', description: '手牌有3张相同牌，用他人舍牌开杠。破坏门清。' },
+  { id: 'kakan', term: '加杠', termJp: '加カン', category: '基础', description: '已碰的刻子再摸到第4张时追加开杠。可能被抢杠。' },
+  { id: 'oya', term: '庄家', termJp: '親（オヤ）', category: '基础', description: '东家。和牌点数×1.5，和牌或流局听牌时连庄。' },
+  { id: 'ko', term: '闲家', termJp: '子（コ）', category: '基础', description: '非庄家的三家。和牌点数为庄家的2/3。' },
+];
+
+export const TERM_CATEGORIES = ['基础', '役种', '规则', '特殊'];
