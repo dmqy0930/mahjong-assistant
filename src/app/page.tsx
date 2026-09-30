@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, Camera, Calculator, Settings, UserRound } from 'lucide-react';
+import { BookOpen, Camera, Calculator, Settings, UserRound, Users } from 'lucide-react';
 import { currentDisplayName, getCurrentAccount } from '@/lib/auth/local-account';
 
 export default function HomePage() {
@@ -97,6 +97,28 @@ export default function HomePage() {
                   </h2>
                   <p className="text-sm text-[#9FAF9E] leading-relaxed">
                     对局记录 · 点数管理 · 顺位排名 · 历史明细
+                  </p>
+                </div>
+                <div className="text-[#9FAF9E] text-sm">→</div>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/room"
+            className="block group"
+          >
+            <div className="bg-[#17251D] rounded-lg border border-[#26382C] p-5 transition-all duration-200 group-hover:border-[#C9A24B]/50 group-hover:shadow-lg group-hover:shadow-[#C9A24B]/5">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-lg bg-[#C9A24B]/10 flex items-center justify-center flex-shrink-0">
+                  <Users className="w-6 h-6 text-[#C9A24B]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-serif font-bold text-[#EFE9DA] mb-1">
+                    对局房间
+                  </h2>
+                  <p className="text-sm text-[#9FAF9E] leading-relaxed">
+                    房间号共享 · 四人同步记录 · 拍照算分直接入账
                   </p>
                 </div>
                 <div className="text-[#9FAF9E] text-sm">→</div>
