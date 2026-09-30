@@ -51,6 +51,66 @@ export const DEFAULT_ROOM_META: RoomMeta = {
   startScore: 25000,
 };
 
+/** 房间号字母表：排除容易看错的 I O 0 1，与 schema.sql 保持一致 */
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+export function randomRoomCode(): string {
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  }
+  return code;
+}
+
+const TOKEN_PREFIX = 'mahjong-room-token:';
+
+function generateToken(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * 房间凭证：首次进入某个房间时生成并存在本地，之后所有写操作都要带上它。
+ * 它相当于「房间内的钥匙」，不绑定真实身份。
+ */
+export function getRoomToken(code: string): string {
+  if (typeof window === 'undefined') return '';
+  const key = TOKEN_PREFIX + normalizeRoomCode(code);
+  try {
+    const existing = window.localStorage.getItem(key);
+    if (existing) return existing;
+    const token = generateToken();
+    window.localStorage.setItem(key, token);
+    return token;
+  } catch {
+    return '';
+  }
+}
+
+export type MemberStatus = 'pending' | 'approved' | 'rejected';
+
+export interface RoomMemberInfo {
+  status: MemberStatus;
+  isHost: boolean;
+  nickname?: string;
+}
+
+export interface PendingMember {
+  id: number;
+  nickname: string;
+  createdAt: string;
+}
+
 /** 房间号统一大写、去掉空格与连字符，方便手抄与输入 */
 export function normalizeRoomCode(input: string): string {
   return (input ?? '').toUpperCase().replace(/[\s-]/g, '');

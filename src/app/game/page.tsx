@@ -1,7 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Trophy, ChevronDown, ChevronUp, Trash2, Edit2, Camera } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import {
+  ArrowLeft,
+  Trophy,
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+  Edit2,
+  Camera,
+  Check,
+} from 'lucide-react';
 import Link from 'next/link';
 import {
   PhotoScoringPanel,
@@ -12,6 +22,10 @@ import {
   type PlayerCount,
   type ThreePlayerTsumoRule,
 } from '@/lib/mahjong/scoring';
+import { createRoom } from '@/lib/room/api';
+import { roomServiceConfigured } from '@/lib/room/client';
+import { getRoomToken, randomRoomCode } from '@/lib/room/types';
+import { currentDisplayName } from '@/lib/auth/local-account';
 
 interface Player {
   name: string;
@@ -406,11 +420,50 @@ function NewGameModal({ onCreate, onClose }: {
   onCreate: (names: string[], score: number, rules: GameRules) => void;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [playerCount, setPlayerCount] = useState<PlayerCount>(4);
   const [tsumoRule, setTsumoRule] = useState<ThreePlayerTsumoRule>('split-half');
   const [names, setNames] = useState(['玩家1', '玩家2', '玩家3', '玩家4']);
   const [startScore, setStartScore] = useState(25000);
+  const [sharedRoom, setSharedRoom] = useState(false);
+  const [roomCode, setRoomCode] = useState(() => randomRoomCode());
+  const [roomError, setRoomError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const roomReady = roomServiceConfigured();
   const visibleNames = names.slice(0, playerCount);
+
+  const start = async () => {
+    setRoomError(null);
+
+    // 本地对局：直接建
+    if (!sharedRoom || !roomReady) {
+      onCreate(visibleNames, startScore, { playerCount, threePlayerTsumoRule: tsumoRule });
+      return;
+    }
+
+    const code = roomCode.toUpperCase().replace(/[\s-]/g, '');
+    if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) {
+      setRoomError('房间号需要 6 位字母数字（不含 I、O、0、1）');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const result = await createRoom(
+        { playerNames: visibleNames, playerCount, threePlayerTsumoRule: tsumoRule, startScore },
+        code,
+        getRoomToken(code),
+        currentDisplayName() || '房主',
+      );
+      if (!result.ok || !result.data) {
+        setRoomError(result.error ?? '创建房间失败');
+        return;
+      }
+      router.push(`/room/${result.data}`);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#0F1A15]/95 flex items-center justify-center p-4">
@@ -491,6 +544,57 @@ function NewGameModal({ onCreate, onClose }: {
               className="flex-1 bg-[#0F1A15] border border-[#26382C] rounded-md px-3 py-2 text-sm text-[#EFE9DA] focus:outline-none focus:border-[#C9A24B]/50"
             />
           </div>
+
+          <div className="border-t border-[#26382C] pt-3">
+            <button
+              type="button"
+              onClick={() => setSharedRoom(v => !v)}
+              disabled={!roomReady}
+              className="flex items-center gap-2 text-left disabled:opacity-50"
+            >
+              <span
+                className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                  sharedRoom ? 'bg-[#C4463A] border-[#C4463A]' : 'border-[#55695B]'
+                }`}
+              >
+                {sharedRoom && <Check className="w-3 h-3 text-[#F6F1E4]" />}
+              </span>
+              <span className="text-xs text-[#EFE9DA]">创建共享房间</span>
+            </button>
+            <p className="text-[10px] text-[#9FAF9E] mt-1 ml-6 leading-relaxed">
+              {roomReady
+                ? '生成一个房间号，发给其他玩家即可申请加入，四人实时同步记录'
+                : '房间服务未配置，请先设置 SUPABASE 环境变量并执行 supabase/schema.sql'}
+            </p>
+
+            {sharedRoom && roomReady && (
+              <div className="mt-2 ml-6">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={roomCode}
+                    onChange={e => setRoomCode(e.target.value.toUpperCase())}
+                    maxLength={6}
+                    spellCheck={false}
+                    placeholder="自定义房间号"
+                    className="flex-1 bg-[#0F1A15] border border-[#26382C] rounded-md px-3 py-2 text-sm tracking-[0.2em] text-[#C9A24B] placeholder-[#55695B] focus:outline-none focus:border-[#C9A24B]/60"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setRoomCode(randomRoomCode())}
+                    className="px-3 py-2 bg-[#26382C] text-[#9FAF9E] hover:text-[#EFE9DA] rounded-md text-xs transition-colors"
+                  >
+                    随机
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#55695B] mt-1">
+                  可自定义，但颜色偏暗的字母容易看错，已排除 I、O、0、1
+                </p>
+              </div>
+            )}
+
+            {roomError && <p className="text-xs text-[#C4463A] mt-2">{roomError}</p>}
+          </div>
         </div>
 
         <div className="flex gap-3 mt-5">
@@ -501,15 +605,11 @@ function NewGameModal({ onCreate, onClose }: {
             取消
           </button>
           <button
-            onClick={() =>
-              onCreate(visibleNames, startScore, {
-                playerCount,
-                threePlayerTsumoRule: tsumoRule,
-              })
-            }
-            className="flex-1 py-2.5 bg-[#C4463A] text-[#F6F1E4] rounded-lg text-sm font-medium btn-vermillion"
+            onClick={() => void start()}
+            disabled={creating}
+            className="flex-1 py-2.5 bg-[#C4463A] text-[#F6F1E4] rounded-lg text-sm font-medium btn-vermillion disabled:opacity-50"
           >
-            开始
+            {creating ? '创建房间中…' : '开始'}
           </button>
         </div>
       </div>

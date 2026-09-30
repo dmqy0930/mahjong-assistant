@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeStandings,
+  getRoomToken,
   isValidRoomCode,
   normalizeMeta,
   normalizeRoomCode,
+  randomRoomCode,
   type RoomRoundRecord,
   type RoundPayload,
 } from './types';
@@ -44,6 +46,41 @@ describe('房间号处理', () => {
     expect(isValidRoomCode('ABC23')).toBe(false);
     expect(isValidRoomCode('ABCI23')).toBe(false);
     expect(isValidRoomCode('ABC023')).toBe(false);
+  });
+});
+
+describe('randomRoomCode', () => {
+  it('生成的房间号合法且不含易混淆字符', () => {
+    for (let i = 0; i < 50; i++) {
+      const code = randomRoomCode();
+      expect(code).toHaveLength(6);
+      expect(isValidRoomCode(code)).toBe(true);
+      expect(code).not.toMatch(/[IO01]/);
+    }
+  });
+});
+
+describe('getRoomToken', () => {
+  function installStorage() {
+    const store = new Map<string, string>();
+    (globalThis as Record<string, unknown>).window = {
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+      },
+    };
+  }
+
+  it('同一房间始终返回同一个凭证', () => {
+    installStorage();
+    const first = getRoomToken('abc234');
+    expect(first).not.toBe('');
+    expect(getRoomToken('ABC234')).toBe(first);
+  });
+
+  it('不同房间使用不同凭证', () => {
+    installStorage();
+    expect(getRoomToken('ABC234')).not.toBe(getRoomToken('ABC235'));
   });
 });
 

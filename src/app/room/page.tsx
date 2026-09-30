@@ -8,17 +8,21 @@ import { createRoom } from '@/lib/room/api';
 import { roomServiceConfigured } from '@/lib/room/client';
 import {
   DEFAULT_ROOM_META,
+  getRoomToken,
   isValidRoomCode,
   normalizeRoomCode,
+  randomRoomCode,
   type RoomMeta,
 } from '@/lib/room/types';
 import { THREE_PLAYER_TSUMO_RULES, type PlayerCount } from '@/lib/mahjong/scoring';
+import { currentDisplayName } from '@/lib/auth/local-account';
 
 export default function RoomIndexPage() {
   const router = useRouter();
   const [configured, setConfigured] = useState(true);
   const [meta, setMeta] = useState<RoomMeta>(DEFAULT_ROOM_META);
   const [joinCode, setJoinCode] = useState('');
+  const [roomCode, setRoomCode] = useState(() => randomRoomCode());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,9 +37,21 @@ export default function RoomIndexPage() {
 
   const handleCreate = async () => {
     setError(null);
+
+    const code = normalizeRoomCode(roomCode);
+    if (!isValidRoomCode(code)) {
+      setError('房间号需要 6 位字母数字（不含 I、O、0、1）');
+      return;
+    }
+
     setBusy(true);
     try {
-      const result = await createRoom({ ...meta, playerNames: visibleNames });
+      const result = await createRoom(
+        { ...meta, playerNames: visibleNames },
+        code,
+        getRoomToken(code),
+        currentDisplayName() || '房主',
+      );
       if (!result.ok || !result.data) {
         setError(result.error ?? '创建失败');
         return;
@@ -118,6 +134,26 @@ export default function RoomIndexPage() {
           </h2>
 
           <div className="space-y-3">
+            <div>
+              <p className="text-xs text-[#9FAF9E] mb-1">房间号（可自定义，建好后发给其他玩家）</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={roomCode}
+                  onChange={e => setRoomCode(e.target.value.toUpperCase())}
+                  maxLength={6}
+                  spellCheck={false}
+                  className="flex-1 bg-[#0F1A15] border border-[#26382C] rounded-md px-3 py-2 text-sm tracking-[0.2em] text-[#C9A24B] focus:outline-none focus:border-[#C9A24B]/60"
+                />
+                <button
+                  onClick={() => setRoomCode(randomRoomCode())}
+                  className="px-3 py-2 bg-[#26382C] text-[#9FAF9E] hover:text-[#EFE9DA] rounded-md text-xs transition-colors"
+                >
+                  随机
+                </button>
+              </div>
+            </div>
+
             <div>
               <p className="text-xs text-[#9FAF9E] mb-1">人数</p>
               <div className="flex gap-2">
