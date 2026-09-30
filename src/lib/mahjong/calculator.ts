@@ -227,6 +227,7 @@ export function calculatePoints(input: WinHandInput): CalcResult {
     yakuList,
     totalHan,
     fu,
+    basicPoints,
     points: {
       dealer_tsumo: ceil100(basicPoints * 2),
       non_dealer_tsumo_dealer: ceil100(basicPoints * 2),

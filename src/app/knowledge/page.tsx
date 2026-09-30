@@ -1,15 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, BookOpen, Search, Scroll, Calculator, Wind } from 'lucide-react';
+import { ArrowLeft, BookOpen, Search, Scroll, Calculator, Wind, Users } from 'lucide-react';
 import Link from 'next/link';
 import { WinRules } from '@/components/knowledge/WinRules';
 import { YakuTable } from '@/components/knowledge/YakuTable';
 import { TermSearch } from '@/components/knowledge/TermSearch';
 import { FuCalc } from '@/components/knowledge/FuCalc';
 import { WindInfo } from '@/components/knowledge/WindInfo';
+import { ThreePlayerRules } from '@/components/knowledge/ThreePlayerRules';
 
-type Tab = 'rules' | 'yaku' | 'terms' | 'fu' | 'wind';
+type Tab = 'rules' | 'yaku' | 'terms' | 'fu' | 'wind' | 'three';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'rules', label: '和牌规则', icon: <Scroll className="w-4 h-4" /> },
@@ -17,6 +18,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'terms', label: '术语', icon: <Search className="w-4 h-4" /> },
   { id: 'fu', label: '番符计算', icon: <Calculator className="w-4 h-4" /> },
   { id: 'wind', label: '风牌', icon: <Wind className="w-4 h-4" /> },
+  { id: 'three', label: '三麻', icon: <Users className="w-4 h-4" /> },
 ];
 
 export default function KnowledgePage() {
@@ -59,6 +61,7 @@ export default function KnowledgePage() {
         {activeTab === 'terms' && <TermSearch />}
         {activeTab === 'fu' && <FuCalc />}
         {activeTab === 'wind' && <WindInfo />}
+        {activeTab === 'three' && <ThreePlayerRules />}
       </main>
     </div>
   );

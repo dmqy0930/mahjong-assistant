@@ -60,6 +60,8 @@ export interface CalcResult {
   yakuList: { yaku: Yaku; han: number }[];
   totalHan: number;
   fu: number;
+  /** 基本点，用于按人数（三麻/四麻）推导各家授受 */
+  basicPoints: number;
   points: {
     dealer_tsumo: number; // 庄家自摸（每家支付）
     non_dealer_tsumo_dealer: number; // 闲家自摸庄家支付

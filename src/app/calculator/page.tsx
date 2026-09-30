@@ -7,6 +7,12 @@ import type { Tile, WinHandInput, Mentsu, WinType, AgariType, PlayerWind, BaWind
 import { YAKU_LIST } from '@/lib/mahjong/yaku';
 import { calculatePoints, getLimitTypeName, getDoraTilesFromIndicators } from '@/lib/mahjong/calculator';
 import { analyzeHand } from '@/lib/mahjong/hand';
+import {
+  THREE_PLAYER_TSUMO_RULES,
+  computeScoreChanges,
+  type PlayerCount,
+  type ThreePlayerTsumoRule,
+} from '@/lib/mahjong/scoring';
 import { createTile, sortTiles } from '@/lib/mahjong/tile-utils';
 import { resolveProvider, validateProvider } from '@/lib/ai/providers';
 import { getActiveProviderConfig, loadAiSettings } from '@/lib/ai/storage';
@@ -90,6 +96,8 @@ export default function CalculatorPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageInfo, setImageInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [playerCount, setPlayerCount] = useState<PlayerCount>(4);
+  const [tsumoRule, setTsumoRule] = useState<ThreePlayerTsumoRule>('split-half');
   const [aiLabel, setAiLabel] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -307,6 +315,23 @@ export default function CalculatorPage() {
     });
   };
 
+  // 按人数推导各家授受（三麻只有两家支付）
+  const payments = useMemo(() => {
+    if (!result?.hasYaku) return null;
+    return computeScoreChanges({
+      basicPoints: result.basicPoints,
+      isDealer: state.isDealer,
+      isTsumo: state.isTsumo,
+      playerCount,
+      threePlayerTsumoRule: tsumoRule,
+      honba: state.honba,
+      kyoutaku: state.kyoutaku,
+      winnerIndex: 0,
+      dealerIndex: state.isDealer ? 0 : 1,
+      loserIndex: null,
+    });
+  }, [result, state.isDealer, state.isTsumo, state.honba, state.kyoutaku, playerCount, tsumoRule]);
+
   return (
     <div className="min-h-screen flex flex-col pb-20">
       {/* Header */}
@@ -501,6 +526,44 @@ export default function CalculatorPage() {
         {/* Conditions */}
         <section className="bg-[#17251D] rounded-lg border border-[#26382C] p-4">
           <h3 className="text-sm font-serif font-bold text-[#C9A24B] mb-3">和牌条件</h3>
+
+          {/* 人数 */}
+          <div className="mb-3">
+            <p className="text-xs text-[#9FAF9E] mb-1">人数</p>
+            <div className="flex gap-2">
+              {([4, 3] as PlayerCount[]).map(count => (
+                <button
+                  key={count}
+                  onClick={() => setPlayerCount(count)}
+                  className={`flex-1 py-1.5 rounded-md text-xs transition-all ${
+                    playerCount === count
+                      ? 'bg-[#C4463A] text-[#F6F1E4]'
+                      : 'bg-[#26382C] text-[#9FAF9E] hover:text-[#EFE9DA]'
+                  }`}
+                >
+                  {count} 人麻将
+                </button>
+              ))}
+            </div>
+            {playerCount === 3 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {THREE_PLAYER_TSUMO_RULES.map(rule => (
+                  <button
+                    key={rule.id}
+                    onClick={() => setTsumoRule(rule.id)}
+                    className={`px-2 py-1 rounded text-[10px] transition-all ${
+                      tsumoRule === rule.id
+                        ? 'bg-[#C9A24B] text-[#0F1A15]'
+                        : 'bg-[#26382C] text-[#9FAF9E] hover:text-[#EFE9DA]'
+                    }`}
+                  >
+                    {rule.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <SelectField
               label="和牌方式"
@@ -673,23 +736,21 @@ export default function CalculatorPage() {
             </div>
 
             {/* Points */}
-            {result.hasYaku ? (
+            {result.hasYaku && payments ? (
               <div className="mt-3 p-3 bg-[#0F1A15] rounded-lg">
-                <p className="text-xs text-[#9FAF9E] mb-1">支付点数</p>
+                <p className="text-xs text-[#9FAF9E] mb-1">支付点数 · {playerCount}人局</p>
                 {state.isTsumo ? (
-                  state.isDealer ? (
-                    <p className="text-lg font-bold text-[#C9A24B]">
-                      {result.points.dealer_tsumo}点 × 3人
-                    </p>
-                  ) : (
-                    <p className="text-lg font-bold text-[#C9A24B]">
-                      {result.points.non_dealer_tsumo_non_dealer} / {result.points.non_dealer_tsumo_dealer}
-                      <span className="text-xs text-[#9FAF9E] ml-1">(闲家/庄家)</span>
-                    </p>
-                  )
+                  <p className="text-lg font-bold text-[#C9A24B]">
+                    {Array.from(new Set(payments.payments.map(p => p.amount))).join(' / ')}
+                    <span className="text-xs text-[#9FAF9E] ml-1">
+                      {new Set(payments.payments.map(p => p.amount)).size > 1
+                        ? '（庄家 / 闲家）'
+                        : `× ${payments.payments.length} 家`}
+                    </span>
+                  </p>
                 ) : (
                   <p className="text-lg font-bold text-[#C9A24B]">
-                    {state.isDealer ? result.points.dealer_ron : result.points.non_dealer_ron}点
+                    {payments.payments[0]?.amount ?? 0}点
                   </p>
                 )}
                 {state.honba > 0 && (

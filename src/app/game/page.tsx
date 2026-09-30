@@ -1,8 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Trophy, ChevronDown, ChevronUp, Trash2, Edit2 } from 'lucide-react';
+import { ArrowLeft, Trophy, ChevronDown, ChevronUp, Trash2, Edit2, Camera } from 'lucide-react';
 import Link from 'next/link';
+import {
+  PhotoScoringPanel,
+  type PhotoRoundDraft,
+} from '@/components/calculator/PhotoScoringPanel';
+import {
+  THREE_PLAYER_TSUMO_RULES,
+  type PlayerCount,
+  type ThreePlayerTsumoRule,
+} from '@/lib/mahjong/scoring';
 
 interface Player {
   name: string;
@@ -26,6 +35,20 @@ interface GameData {
   rounds: RoundResult[];
   startTime: number;
   isFinished: boolean;
+  /** 三人局 / 四人局以及三麻自摸分配规则 */
+  rules?: GameRules;
+}
+
+interface GameRules {
+  playerCount: PlayerCount;
+  threePlayerTsumoRule: ThreePlayerTsumoRule;
+}
+
+const DEFAULT_RULES: GameRules = { playerCount: 4, threePlayerTsumoRule: 'split-half' };
+
+/** 三麻只有东・南・西三个座位 */
+function seatWinds(playerCount: number): string[] {
+  return ['东', '南', '西', '北'].slice(0, playerCount);
 }
 
 const STORAGE_KEY = 'mahjong-game-history';
@@ -34,7 +57,10 @@ function loadGames(): GameData[] {
   if (typeof window === 'undefined') return [];
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    const parsed = JSON.parse(data) as GameData[];
+    // 兼容早期没有 rules 字段的记录
+    return parsed.map(game => ({ ...game, rules: game.rules ?? DEFAULT_RULES }));
   } catch {
     return [];
   }
@@ -57,7 +83,7 @@ export default function GamePage() {
   }, []);
 
   // Create new game
-  const createGame = (names: string[], startScore: number) => {
+  const createGame = (names: string[], startScore: number, rules: GameRules) => {
     const game: GameData = {
       id: Date.now().toString(),
       players: names.map(name => ({
@@ -67,6 +93,7 @@ export default function GamePage() {
       rounds: [],
       startTime: Date.now(),
       isFinished: false,
+      rules,
     };
     const newGames = [game, ...games];
     setGames(newGames);
@@ -176,7 +203,7 @@ export default function GamePage() {
                       </span>
                       <span className="text-sm text-[#EFE9DA]">{p.name}</span>
                       <span className="text-xs text-[#9FAF9E]">
-                        {['东', '南', '西', '北'][origIdx]}
+                        {seatWinds(activeGame.players.length)[origIdx]}
                       </span>
                     </div>
                     <div className="text-right">
@@ -233,6 +260,7 @@ export default function GamePage() {
           <RoundInputModal
             players={activeGame.players}
             roundNumber={activeGame.rounds.length + 1}
+            rules={activeGame.rules ?? DEFAULT_RULES}
             onSubmit={addRound}
             onClose={() => setShowRoundInput(false)}
           />
@@ -375,21 +403,72 @@ export default function GamePage() {
 }
 
 function NewGameModal({ onCreate, onClose }: {
-  onCreate: (names: string[], score: number) => void;
+  onCreate: (names: string[], score: number, rules: GameRules) => void;
   onClose: () => void;
 }) {
+  const [playerCount, setPlayerCount] = useState<PlayerCount>(4);
+  const [tsumoRule, setTsumoRule] = useState<ThreePlayerTsumoRule>('split-half');
   const [names, setNames] = useState(['玩家1', '玩家2', '玩家3', '玩家4']);
   const [startScore, setStartScore] = useState(25000);
+  const visibleNames = names.slice(0, playerCount);
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#0F1A15]/95 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-[#17251D] rounded-lg border border-[#26382C] p-5">
+      <div className="w-full max-w-sm bg-[#17251D] rounded-lg border border-[#26382C] p-5 max-h-[88vh] overflow-y-auto">
         <h3 className="text-base font-serif font-bold text-[#C9A24B] mb-4">新建对局</h3>
 
         <div className="space-y-3">
-          {names.map((name, i) => (
+          <div>
+            <p className="text-xs text-[#9FAF9E] mb-1">人数</p>
+            <div className="flex gap-2">
+              {([4, 3] as PlayerCount[]).map(count => (
+                <button
+                  key={count}
+                  onClick={() => setPlayerCount(count)}
+                  className={`flex-1 py-2 rounded-md text-xs ${
+                    playerCount === count
+                      ? 'bg-[#C4463A] text-[#F6F1E4]'
+                      : 'bg-[#26382C] text-[#9FAF9E]'
+                  }`}
+                >
+                  {count} 人麻将
+                </button>
+              ))}
+            </div>
+            {playerCount === 3 && (
+              <p className="text-[10px] text-[#9FAF9E] mt-1 leading-relaxed">
+                三麻只有东・南・西三个座位，没有北家，因此自摸时只有两家支付。
+              </p>
+            )}
+          </div>
+
+          {playerCount === 3 && (
+            <div>
+              <p className="text-xs text-[#9FAF9E] mb-1">三麻自摸分配规则</p>
+              <div className="space-y-1">
+                {THREE_PLAYER_TSUMO_RULES.map(rule => (
+                  <button
+                    key={rule.id}
+                    onClick={() => setTsumoRule(rule.id)}
+                    className={`w-full text-left px-2.5 py-2 rounded-md border ${
+                      tsumoRule === rule.id
+                        ? 'border-[#C9A24B] bg-[#C9A24B]/10'
+                        : 'border-[#26382C] bg-[#0F1A15]'
+                    }`}
+                  >
+                    <span className="text-xs text-[#EFE9DA]">{rule.name}</span>
+                    <span className="block text-[10px] text-[#9FAF9E] mt-0.5 leading-relaxed">
+                      {rule.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {visibleNames.map((name, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="text-xs text-[#9FAF9E] w-6">{['东', '南', '西', '北'][i]}</span>
+              <span className="text-xs text-[#9FAF9E] w-6">{seatWinds(playerCount)[i]}</span>
               <input
                 type="text"
                 value={name}
@@ -422,7 +501,12 @@ function NewGameModal({ onCreate, onClose }: {
             取消
           </button>
           <button
-            onClick={() => onCreate(names, startScore)}
+            onClick={() =>
+              onCreate(visibleNames, startScore, {
+                playerCount,
+                threePlayerTsumoRule: tsumoRule,
+              })
+            }
             className="flex-1 py-2.5 bg-[#C4463A] text-[#F6F1E4] rounded-lg text-sm font-medium btn-vermillion"
           >
             开始
@@ -433,9 +517,10 @@ function NewGameModal({ onCreate, onClose }: {
   );
 }
 
-function RoundInputModal({ players, roundNumber, onSubmit, onClose }: {
+function RoundInputModal({ players, roundNumber, rules, onSubmit, onClose }: {
   players: Player[];
   roundNumber: number;
+  rules: GameRules;
   onSubmit: (round: RoundResult) => void;
   onClose: () => void;
 }) {
@@ -443,9 +528,22 @@ function RoundInputModal({ players, roundNumber, onSubmit, onClose }: {
   const [winnerIdx, setWinnerIdx] = useState<number | null>(null);
   const [loserIdx, setLoserIdx] = useState<number | null>(null);
   const [isTsumo, setIsTsumo] = useState(false);
-  const [points, setPoints] = useState<number[]>([0, 0, 0, 0]);
+  const [points, setPoints] = useState<number[]>(() => players.map(() => 0));
   const [honba, setHonba] = useState(0);
   const [yakuText, setYakuText] = useState('');
+  const [showPhoto, setShowPhoto] = useState(false);
+
+  /** 把拍照算分的结果直接写进本局表单 */
+  const applyPhotoDraft = (draft: PhotoRoundDraft) => {
+    setWinnerIdx(draft.winnerIndex);
+    setLoserIdx(draft.loserIndex);
+    setIsTsumo(draft.isTsumo);
+    setPoints(draft.points);
+    setHonba(draft.honba);
+    const detail = `${draft.han}番${draft.isTsumo ? '' : ` ${draft.fu}符`}`;
+    setYakuText(draft.yakuText ? `${draft.yakuText} ${detail}` : detail);
+    setShowPhoto(false);
+  };
 
   const handlePointChange = (idx: number, value: number) => {
     const newPoints = [...points];
@@ -469,7 +567,15 @@ function RoundInputModal({ players, roundNumber, onSubmit, onClose }: {
   return (
     <div className="fixed inset-0 z-[100] bg-[#0F1A15]/95 flex items-end sm:items-center justify-center">
       <div className="w-full max-w-sm bg-[#17251D] rounded-t-lg sm:rounded-lg border border-[#26382C] p-5 max-h-[80vh] overflow-y-auto">
-        <h3 className="text-base font-serif font-bold text-[#C9A24B] mb-4">录入本局</h3>
+        <h3 className="text-base font-serif font-bold text-[#C9A24B] mb-3">录入本局</h3>
+
+        <button
+          onClick={() => setShowPhoto(true)}
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 mb-3 bg-[#26382C] border border-[#C9A24B]/40 text-[#C9A24B] rounded-lg text-xs font-medium hover:bg-[#31473A] transition-colors"
+        >
+          <Camera className="w-3.5 h-3.5" />
+          拍照算分（自动填入点数）
+        </button>
 
         <div className="space-y-3">
           {/* Round name */}
@@ -602,6 +708,16 @@ function RoundInputModal({ players, roundNumber, onSubmit, onClose }: {
           </button>
         </div>
       </div>
+
+      {showPhoto && (
+        <PhotoScoringPanel
+          playerNames={players.map(p => p.name)}
+          playerCount={rules.playerCount}
+          threePlayerTsumoRule={rules.threePlayerTsumoRule}
+          onApply={applyPhotoDraft}
+          onClose={() => setShowPhoto(false)}
+        />
+      )}
     </div>
   );
 }
