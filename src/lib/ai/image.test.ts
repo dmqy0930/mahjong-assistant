@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MAX_EDGE,
-  compressionLadder,
   computeTargetSize,
   estimateDataUrlBytes,
   sniffImage,
@@ -51,28 +50,21 @@ describe('computeTargetSize', () => {
   });
 });
 
-describe('compressionLadder', () => {
-  it('先降质量再降分辨率，且逐级递减', () => {
-    const ladder = compressionLadder(2400, 0.82);
-    expect(ladder[0]).toEqual({ maxEdge: 2400, quality: 0.82 });
-    expect(ladder.length).toBeGreaterThan(1);
-    // 分辨率全程不升
-    for (let i = 1; i < ladder.length; i++) {
-      expect(ladder[i].maxEdge).toBeLessThanOrEqual(ladder[i - 1].maxEdge);
-      expect(ladder[i].quality).toBeLessThanOrEqual(ladder[i - 1].quality);
-    }
-    // 质量先触底，之后才开始缩分辨率
-    expect(ladder[1].maxEdge).toBe(2400);
-    expect(ladder.at(-1)!.maxEdge).toBeLessThan(2400);
+describe('原图上传', () => {
+  it('默认不做缩放', () => {
+    expect(DEFAULT_MAX_EDGE).toBeNull();
   });
 
-  it('不会把分辨率压到 800 以下就停止', () => {
-    const ladder = compressionLadder(DEFAULT_MAX_EDGE, 0.82, 20);
-    expect(ladder.at(-1)!.maxEdge).toBeGreaterThanOrEqual(800);
+  it('maxEdge 为 null 时原样返回尺寸', () => {
+    expect(computeTargetSize(4000, 3000, null)).toEqual({
+      width: 4000,
+      height: 3000,
+      scaled: false,
+    });
   });
 
-  it('默认分辨率提升到 2400', () => {
-    expect(DEFAULT_MAX_EDGE).toBe(2400);
+  it('显式传入 maxEdge 时仍然会缩放', () => {
+    expect(computeTargetSize(4000, 3000, 2400).scaled).toBe(true);
   });
 });
 

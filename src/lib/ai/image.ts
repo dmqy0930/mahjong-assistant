@@ -6,36 +6,33 @@
  * 解码 → 等比缩放 → 重新编码为 JPEG，一次性解决格式、体积两个问题。
  */
 
-export const DEFAULT_MAX_EDGE = 2400;
-export const DEFAULT_QUALITY = 0.82;
-/** 单张图片 dataURL 的字符上限，超出会自动降质/缩小（服务端上限是 4MB 字符） */
-export const DEFAULT_MAX_DATA_URL_CHARS = 3_800_000;
+/** 默认不缩放，原图上传 */
+export const DEFAULT_MAX_EDGE: number | null = null;
+/** 需要转码时的质量，尽量不损失细节 */
+export const DEFAULT_QUALITY = 1;
 
-export interface CompressionStep {
-  maxEdge: number;
-  quality: number;
+/** 各厂商都直接支持的格式，原样上传即可，无需重新编码 */
+const PASSTHROUGH_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new ImageDecodeError('读取图片失败，请重试。'));
+    reader.readAsDataURL(file);
+  });
 }
 
-/**
- * 压缩尝试序列：先降质量，降到 0.5 之后再降分辨率。
- * 牌面细节重要，所以尽量保分辨率、优先牺牲画质。
- */
-export function compressionLadder(
-  maxEdge: number,
-  quality: number,
-  steps = 6,
-): CompressionStep[] {
-  const ladder: CompressionStep[] = [];
-  let edge = maxEdge;
-  let q = quality;
-
-  for (let i = 0; i < steps; i++) {
-    ladder.push({ maxEdge: Math.round(edge), quality: Number(q.toFixed(2)) });
-    if (q > 0.5) q = Math.max(0.5, q - 0.15);
-    else edge = edge * 0.75;
-    if (edge < 800) break;
+/** 只为了在界面上显示分辨率，失败不影响上传 */
+async function readDimensions(file: File): Promise<{ width: number; height: number } | null> {
+  try {
+    const image = await decode(file);
+    const size = { width: image.width, height: image.height };
+    if (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap) image.close();
+    return size;
+  } catch {
+    return null;
   }
-  return ladder;
 }
 
 function renderJpeg(
@@ -78,8 +75,15 @@ export class ImageDecodeError extends Error {
   }
 }
 
-/** 等比缩放到最长边不超过 maxEdge（只缩不放） */
-export function computeTargetSize(width: number, height: number, maxEdge: number): TargetSize {
+/** 等比缩放到最长边不超过 maxEdge（只缩不放）；maxEdge 为 null 时原样返回 */
+export function computeTargetSize(
+  width: number,
+  height: number,
+  maxEdge: number | null,
+): TargetSize {
+  if (maxEdge === null || !Number.isFinite(maxEdge) || maxEdge <= 0) {
+    return { width, height, scaled: false };
+  }
   const longest = Math.max(width, height);
   if (!Number.isFinite(longest) || longest <= 0) {
     return { width, height, scaled: false };
@@ -178,11 +182,18 @@ export function formatProbe(probe: ImageProbe): string {
   return `${probe.detectedType} · ${Math.round(probe.bytes / 1024)}KB · 头字节 ${probe.magicHex || '空'}`;
 }
 
+/** 界面上展示「已上传」那一行用 */
+export function describePreparedImage(image: PreparedImage): string {
+  const kb = Math.max(1, Math.round(image.bytes / 1024));
+  const dims = image.width > 0 && image.height > 0 ? ` · ${image.width}×${image.height}` : '';
+  const converted = image.converted ? `（原图 ${image.sourceType || '未知'}，已转码）` : '';
+  return `${image.mediaType} · ${kb}KB${dims}${converted}`;
+}
+
 export interface PrepareOptions {
-  maxEdge?: number;
+  /** 传数字才会缩放；默认 null 表示原图上传 */
+  maxEdge?: number | null;
   quality?: number;
-  /** dataURL 字符上限，超出则自动降质/缩小 */
-  maxDataUrlChars?: number;
 }
 
 type DecodedImage = ImageBitmap | HTMLImageElement;
@@ -217,37 +228,45 @@ export async function prepareImageForUpload(
 ): Promise<PreparedImage> {
   const maxEdge = options.maxEdge ?? DEFAULT_MAX_EDGE;
   const quality = options.quality ?? DEFAULT_QUALITY;
-  const maxChars = options.maxDataUrlChars ?? DEFAULT_MAX_DATA_URL_CHARS;
 
+  // 原图优先：格式已被厂商支持、且没有显式要求缩放时，直接上传原始字节，
+  // 完全不经过 canvas，避免任何重新编码造成的细节损失。
+  if (maxEdge === null && PASSTHROUGH_TYPES.has(file.type)) {
+    const dataUrl = await readAsDataUrl(file);
+    const size = await readDimensions(file);
+    return {
+      dataUrl,
+      mediaType: file.type,
+      bytes: estimateDataUrlBytes(dataUrl),
+      width: size?.width ?? 0,
+      height: size?.height ?? 0,
+      scaled: false,
+      converted: false,
+      sourceType: file.type,
+      sourceBytes: file.size,
+    };
+  }
+
+  // HEIC / AVIF 等厂商不认的格式必须转码；此处保留原始分辨率与质量
   const image = await decode(file);
-  // ImageBitmap 一旦 close 就不能再读尺寸，先记下来
   const sourceWidth = image.width;
   const sourceHeight = image.height;
-  let dataUrl = '';
-  let width = sourceWidth;
-  let height = sourceHeight;
 
   try {
-    for (const step of compressionLadder(maxEdge, quality)) {
-      const target = computeTargetSize(sourceWidth, sourceHeight, step.maxEdge);
-      dataUrl = renderJpeg(image, target.width, target.height, step.quality);
-      width = target.width;
-      height = target.height;
-      if (dataUrl.length <= maxChars) break;
-    }
+    const target = computeTargetSize(sourceWidth, sourceHeight, maxEdge);
+    const dataUrl = renderJpeg(image, target.width, target.height, quality);
+    return {
+      dataUrl,
+      mediaType: 'image/jpeg',
+      bytes: estimateDataUrlBytes(dataUrl),
+      width: target.width,
+      height: target.height,
+      scaled: target.scaled,
+      converted: file.type !== 'image/jpeg',
+      sourceType: file.type || '未知',
+      sourceBytes: file.size,
+    };
   } finally {
     if (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap) image.close();
   }
-
-  return {
-    dataUrl,
-    mediaType: 'image/jpeg',
-    bytes: estimateDataUrlBytes(dataUrl),
-    width,
-    height,
-    scaled: width !== sourceWidth || height !== sourceHeight,
-    converted: file.type !== 'image/jpeg',
-    sourceType: file.type || '未知',
-    sourceBytes: file.size,
-  };
 }

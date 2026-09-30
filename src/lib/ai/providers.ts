@@ -23,7 +23,7 @@ export interface ProviderPreset {
 }
 
 /** 输出 token 上限（max_tokens）默认值与边界；推理模型的思考与正文共享此额度 */
-export const DEFAULT_MAX_TOKENS = 8192;
+export const DEFAULT_MAX_TOKENS = 65536;
 export const MIN_MAX_TOKENS = 256;
 export const MAX_MAX_TOKENS = 65536;
 

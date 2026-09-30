@@ -7,7 +7,7 @@ import { analyzeHand } from '@/lib/mahjong/hand';
 import { calculatePoints, getLimitTypeName, getDoraTilesFromIndicators } from '@/lib/mahjong/calculator';
 import { computeScoreChanges, type PlayerCount, type ThreePlayerTsumoRule } from '@/lib/mahjong/scoring';
 import { createTile, sortTiles } from '@/lib/mahjong/tile-utils';
-import { prepareImageForUpload } from '@/lib/ai/image';
+import { describePreparedImage, prepareImageForUpload } from '@/lib/ai/image';
 import { getActiveProviderConfig, loadAiSettings } from '@/lib/ai/storage';
 import { YAKU_LIST } from '@/lib/mahjong/yaku';
 import { TileDisplay } from './TileDisplay';
@@ -76,9 +76,7 @@ export function PhotoScoringPanel({
     try {
       const prepared = await prepareImageForUpload(file);
       setImagePreview(prepared.dataUrl);
-      setImageInfo(
-        `${prepared.mediaType} · ${Math.round(prepared.bytes / 1024)}KB · ${prepared.width}×${prepared.height}`,
-      );
+      setImageInfo(describePreparedImage(prepared));
 
       const provider = getActiveProviderConfig(loadAiSettings());
       const res = await fetch('/api/recognize', {
@@ -86,6 +84,13 @@ export function PhotoScoringPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: prepared.dataUrl, provider }),
       });
+      if (res.status === 413) {
+        setError(
+          `图片过大（${Math.round((prepared.bytes / 1024 / 1024) * 10) / 10}MB），被服务器拒绝。` +
+            'Vercel 部署对请求体有约 4.5MB 的硬限制，可改用自建部署或先压缩图片。',
+        );
+        return;
+      }
       const data = await res.json();
       if (data.error) {
         setError(`${data.error}${data.probe ? `（本次发送：${data.probe.detectedType}）` : ''}`);

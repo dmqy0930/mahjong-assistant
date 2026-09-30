@@ -20,8 +20,13 @@ export const runtime = 'nodejs';
 // 视觉识别通常需要 20~40 秒，必须显式放宽，否则会被平台默认超时掐断
 export const maxDuration = 60;
 
-// 客户端已统一压缩为 JPEG，这里按 Vercel 的 4.5MB 请求体上限留出余量
-const MAX_IMAGE_CHARS = 4 * 1024 * 1024;
+/**
+ * 图片 dataURL 的字符上限。
+ * 注意：Vercel 对函数请求体有 4.5MB 的硬限制，超过会在进入本函数之前就被拦截，
+ * 这里的上限只对自建部署（pnpm start）有意义，因此给得比较宽松。
+ * 可用环境变量 MAX_IMAGE_CHARS 覆盖。
+ */
+const MAX_IMAGE_CHARS = Number(process.env.MAX_IMAGE_CHARS) || 16 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   let body: { imageBase64?: unknown; provider?: unknown };

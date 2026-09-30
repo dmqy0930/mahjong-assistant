@@ -304,9 +304,9 @@ describe('clampTemperature', () => {
 });
 
 describe('输出 token 限额', () => {
-  it('未填写时回落到默认 8192', () => {
+  it('未填写时回落到默认 65536', () => {
     expect(resolveProvider({ providerId: 'openai' }).maxTokens).toBe(DEFAULT_MAX_TOKENS);
-    expect(DEFAULT_MAX_TOKENS).toBe(8192);
+    expect(DEFAULT_MAX_TOKENS).toBe(65536);
   });
 
   it('越界与非法值都会被收敛', () => {

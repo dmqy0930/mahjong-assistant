@@ -16,7 +16,7 @@ import {
 import { createTile, sortTiles } from '@/lib/mahjong/tile-utils';
 import { resolveProvider, validateProvider } from '@/lib/ai/providers';
 import { getActiveProviderConfig, loadAiSettings } from '@/lib/ai/storage';
-import { prepareImageForUpload } from '@/lib/ai/image';
+import { describePreparedImage, prepareImageForUpload } from '@/lib/ai/image';
 import { TileDisplay } from '@/components/calculator/TileDisplay';
 import { TilePicker } from '@/components/calculator/TilePicker';
 
@@ -122,8 +122,7 @@ export default function CalculatorPage() {
       const prepared = await prepareImageForUpload(file);
       setImagePreview(prepared.dataUrl);
       setImageInfo(
-        `${prepared.mediaType} · ${Math.round(prepared.bytes / 1024)}KB · ${prepared.width}×${prepared.height}` +
-          (prepared.converted ? `（原图 ${prepared.sourceType || '未知'}，已转码）` : ''),
+        `${describePreparedImage(prepared)}（原图上传，未压缩）`,
       );
 
       const provider = getActiveProviderConfig(loadAiSettings());
@@ -132,6 +131,13 @@ export default function CalculatorPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: prepared.dataUrl, provider }),
       });
+      if (res.status === 413) {
+        setError(
+          `图片过大（${Math.round(prepared.bytes / 1024 / 1024 * 10) / 10}MB），被服务器拒绝。` +
+            'Vercel 部署对请求体有约 4.5MB 的硬限制，可改用自建部署或先压缩图片。',
+        );
+        return;
+      }
       const data = await res.json();
 
       if (data.error) {
