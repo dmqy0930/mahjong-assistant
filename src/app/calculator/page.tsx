@@ -8,7 +8,7 @@ import { YAKU_LIST } from '@/lib/mahjong/yaku';
 import { calculatePoints, getLimitTypeName, getDoraTilesFromIndicators } from '@/lib/mahjong/calculator';
 import { analyzeHand } from '@/lib/mahjong/hand';
 import { createTile, sortTiles } from '@/lib/mahjong/tile-utils';
-import { resolveProvider } from '@/lib/ai/providers';
+import { resolveProvider, validateProvider } from '@/lib/ai/providers';
 import { getActiveProviderConfig, loadAiSettings } from '@/lib/ai/storage';
 import { prepareImageForUpload } from '@/lib/ai/image';
 import { TileDisplay } from '@/components/calculator/TileDisplay';
@@ -98,7 +98,10 @@ export default function CalculatorPage() {
   useEffect(() => {
     const stored = loadAiSettings();
     const provider = resolveProvider(getActiveProviderConfig(stored));
-    setAiLabel(`${provider.name}${provider.model ? ` · ${provider.model}` : ''}`);
+    const missing = validateProvider(provider);
+    setAiLabel(
+      missing.length > 0 ? `${provider.name} · 配置不完整` : `${provider.name} · ${provider.model}`,
+    );
   }, []);
 
   // Handle image upload

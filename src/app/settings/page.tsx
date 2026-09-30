@@ -24,7 +24,6 @@ import {
   resolveProvider,
   validateProvider,
   type ProviderConfigInput,
-  type ProviderPreset,
 } from '@/lib/ai/providers';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -53,11 +52,12 @@ interface TestResult {
   detail?: string;
 }
 
-function draftFrom(config: ProviderConfigInput | undefined, preset: ProviderPreset): Draft {
+/** 表单初值：只取自用户已保存的配置，不用预设值兜底 */
+function draftFrom(config: ProviderConfigInput | undefined): Draft {
   return {
-    baseUrl: config?.baseUrl ?? preset.defaultBaseUrl,
+    baseUrl: config?.baseUrl ?? '',
     apiKey: config?.apiKey ?? '',
-    model: config?.model ?? preset.defaultModel,
+    model: config?.model ?? '',
     temperature: config?.temperature ?? 0.2,
     maxTokens: config?.maxTokens ?? DEFAULT_MAX_TOKENS,
     thinking: config?.thinking ?? false,
@@ -68,7 +68,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<AiSettings>(DEFAULT_AI_SETTINGS);
   const [selectedId, setSelectedId] = useState('coze');
   const [draft, setDraft] = useState<Draft>(() =>
-    draftFrom(undefined, PROVIDER_PRESETS[0]),
+    draftFrom(undefined),
   );
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -85,7 +85,7 @@ export default function SettingsPage() {
 
   // 切换厂商时，用已保存配置或预设默认值填充表单
   useEffect(() => {
-    setDraft(draftFrom(settings.configs[selectedId], preset));
+    setDraft(draftFrom(settings.configs[selectedId]));
     setTestResult(null);
     setNotice(null);
     setShowKey(false);
@@ -96,12 +96,6 @@ export default function SettingsPage() {
     [selectedId, draft],
   );
   const problems = useMemo(() => validateProvider(resolved), [resolved]);
-
-  // 已保存的旧配置会覆盖预设默认值，这里提示用户手动切回推荐值
-  const differsFromPreset =
-    preset.kind !== 'coze' &&
-    ((preset.defaultBaseUrl !== '' && draft.baseUrl !== preset.defaultBaseUrl) ||
-      (preset.defaultModel !== '' && draft.model !== preset.defaultModel));
 
   const persist = useCallback(
     (next: AiSettings, message: string) => {
@@ -123,7 +117,7 @@ export default function SettingsPage() {
 
   const handleDelete = () => {
     persist(removeProviderConfig(settings, selectedId), '已清除该厂商配置');
-    setDraft(draftFrom(undefined, preset));
+    setDraft(draftFrom(undefined));
   };
 
   const handleTest = async () => {
@@ -249,27 +243,6 @@ export default function SettingsPage() {
             </p>
           )}
 
-          {differsFromPreset && (
-            <div className="flex items-center justify-between gap-2 rounded-md border border-[#C9A24B]/30 bg-[#C9A24B]/10 px-2.5 py-2">
-              <span className="text-[10px] text-[#C9A24B] leading-relaxed">
-                当前填写值与推荐值不同，可能是之前保存的旧配置
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  setDraft(prev => ({
-                    ...prev,
-                    baseUrl: preset.defaultBaseUrl,
-                    model: preset.defaultModel,
-                  }))
-                }
-                className="shrink-0 px-2 py-1 rounded bg-[#C9A24B] text-[#0F1A15] text-[10px] font-medium"
-              >
-                使用推荐值
-              </button>
-            </div>
-          )}
-
           {preset.kind !== 'coze' && (
             <>
               <Field label="Base URL">
@@ -277,7 +250,7 @@ export default function SettingsPage() {
                   type="text"
                   value={draft.baseUrl}
                   onChange={e => setDraft(prev => ({ ...prev, baseUrl: e.target.value }))}
-                  placeholder={preset.defaultBaseUrl || 'https://your-gateway/v1'}
+                  placeholder={preset.exampleBaseUrl || 'https://your-gateway/v1'}
                   className="w-full bg-[#0F1A15] border border-[#26382C] rounded-md px-3 py-2 text-sm text-[#EFE9DA] placeholder-[#55695B] focus:outline-none focus:border-[#C9A24B]/60"
                 />
                 <p className="text-[10px] text-[#55695B] mt-1 break-all">
@@ -315,32 +288,37 @@ export default function SettingsPage() {
               list={`models-${preset.id}`}
               value={draft.model}
               onChange={e => setDraft(prev => ({ ...prev, model: e.target.value }))}
-              placeholder={preset.defaultModel || 'model-name'}
+              placeholder={preset.exampleModel || 'model-name'}
               spellCheck={false}
               className="w-full bg-[#0F1A15] border border-[#26382C] rounded-md px-3 py-2 text-sm text-[#EFE9DA] placeholder-[#55695B] focus:outline-none focus:border-[#C9A24B]/60"
             />
             <datalist id={`models-${preset.id}`}>
-              {preset.models.map(model => (
+              {preset.suggestedModels.map(model => (
                 <option key={model} value={model} />
               ))}
             </datalist>
-            {preset.models.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {preset.models.map(model => (
-                  <button
-                    key={model}
-                    type="button"
-                    onClick={() => setDraft(prev => ({ ...prev, model }))}
-                    className={`px-2 py-1 rounded text-[10px] transition-colors ${
-                      draft.model === model
-                        ? 'bg-[#C4463A] text-[#F6F1E4]'
-                        : 'bg-[#26382C] text-[#9FAF9E] hover:text-[#EFE9DA]'
-                    }`}
-                  >
-                    {model}
-                  </button>
-                ))}
-              </div>
+            {preset.suggestedModels.length > 0 && (
+              <>
+                <p className="text-[10px] text-[#55695B] mt-2">
+                  常用型号（点击填入，具体请以厂商控制台为准）
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {preset.suggestedModels.map(model => (
+                    <button
+                      key={model}
+                      type="button"
+                      onClick={() => setDraft(prev => ({ ...prev, model }))}
+                      className={`px-2 py-1 rounded text-[10px] transition-colors ${
+                        draft.model === model
+                          ? 'bg-[#C4463A] text-[#F6F1E4]'
+                          : 'bg-[#26382C] text-[#9FAF9E] hover:text-[#EFE9DA]'
+                      }`}
+                    >
+                      {model}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </Field>
 

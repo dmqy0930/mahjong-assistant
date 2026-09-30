@@ -191,15 +191,25 @@ describe('响应解析', () => {
 });
 
 describe('resolveProvider', () => {
-  it('缺少字段时回落到预设默认值', () => {
+  it('什么都不填时不会用预设值兜底', () => {
     const provider = resolveProvider({ providerId: 'openai' });
     expect(provider.kind).toBe('openai-compatible');
-    expect(provider.baseUrl).toBe('https://api.openai.com/v1');
-    expect(provider.model).toBe('gpt-4o-mini');
+    expect(provider.baseUrl).toBe('');
+    expect(provider.model).toBe('');
+    expect(provider.apiKey).toBe('');
     expect(provider.temperature).toBe(0.2);
   });
 
-  it('用户填写值优先于预设', () => {
+  // 需求：所有厂商的地址与模型一律由用户填写，不预置
+  it('全部厂商都不预置 Base URL 与模型名', () => {
+    for (const preset of PROVIDER_PRESETS) {
+      const provider = resolveProvider({ providerId: preset.id });
+      expect(provider.baseUrl).toBe('');
+      expect(provider.model).toBe('');
+    }
+  });
+
+  it('原样采用用户填写的值', () => {
     const provider = resolveProvider({
       providerId: 'custom',
       baseUrl: 'https://gw.local/v1',
@@ -221,14 +231,28 @@ describe('resolveProvider', () => {
 
 describe('describeRequestTarget', () => {
   it('DeepSeek 不带 /v1', () => {
-    expect(describeRequestTarget(resolveProvider({ providerId: 'deepseek' }))).toBe(
-      'https://api.deepseek.com/chat/completions',
+    const provider = resolveProvider({
+      providerId: 'deepseek',
+      baseUrl: 'https://api.deepseek.com',
+      model: 'deepseek-flash',
+    });
+    expect(describeRequestTarget(provider)).toBe('https://api.deepseek.com/chat/completions');
+  });
+
+  it('未填写地址时给出明确提示', () => {
+    expect(describeRequestTarget(resolveProvider({ providerId: 'openai' }))).toBe(
+      '（尚未填写 Base URL）',
     );
   });
 
   it('Gemini 的密钥用占位符替换，不泄漏', () => {
     const target = describeRequestTarget(
-      resolveProvider({ providerId: 'gemini', apiKey: 'SECRET-KEY' }),
+      resolveProvider({
+        providerId: 'gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+        apiKey: 'SECRET-KEY',
+        model: 'gemini-2.0-flash',
+      }),
     );
     expect(target).toContain('key=***');
     expect(target).not.toContain('SECRET-KEY');
@@ -240,12 +264,27 @@ describe('describeRequestTarget', () => {
 });
 
 describe('validateProvider', () => {
-  it('内置扣子无需任何字段', () => {
-    expect(validateProvider(resolveProvider({ providerId: 'coze' }))).toEqual([]);
+  it('内置扣子只需要模型名', () => {
+    expect(validateProvider(resolveProvider({ providerId: 'coze', model: 'x' }))).toEqual([]);
+    expect(validateProvider(resolveProvider({ providerId: 'coze' }))).toEqual(['缺少模型名']);
   });
 
-  it('第三方厂商缺 Key 时给出提示', () => {
-    expect(validateProvider(resolveProvider({ providerId: 'openai' }))).toEqual(['缺少 API Key']);
+  it('第三方厂商未填写时列出全部缺失项', () => {
+    expect(validateProvider(resolveProvider({ providerId: 'openai' }))).toEqual([
+      '缺少 Base URL',
+      '缺少 API Key',
+      '缺少模型名',
+    ]);
+  });
+
+  it('填全之后没有问题', () => {
+    const provider = resolveProvider({
+      providerId: 'deepseek',
+      baseUrl: 'https://api.deepseek.com',
+      apiKey: 'k',
+      model: 'deepseek-flash',
+    });
+    expect(validateProvider(provider)).toEqual([]);
   });
 
   it('自定义网关缺 Base URL / 模型时全部列出', () => {
@@ -337,8 +376,8 @@ describe('厂商预设', () => {
   // 回归用例：DeepSeek 的旧型号名已退役，deepseek-flash 才是当前支持图片输入的模型
   it('DeepSeek 预设使用 deepseek-flash 并标记支持图片', () => {
     const deepseek = PROVIDER_PRESETS.find(p => p.id === 'deepseek');
-    expect(deepseek?.defaultModel).toBe('deepseek-flash');
-    expect(deepseek?.models).toContain('deepseek-flash');
+    expect(deepseek?.exampleModel).toBe('deepseek-flash');
+    expect(deepseek?.suggestedModels).toContain('deepseek-flash');
     expect(deepseek?.supportsVision).toBe(true);
   });
 });

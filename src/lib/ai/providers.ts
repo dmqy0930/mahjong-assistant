@@ -10,9 +10,12 @@ export interface ProviderPreset {
   name: string;
   vendor: string;
   kind: ProviderKind;
-  defaultBaseUrl: string;
-  defaultModel: string;
-  models: string[];
+  /** 仅供输入框占位提示，绝不作为默认值自动填入 */
+  exampleBaseUrl: string;
+  /** 仅供输入框占位提示，绝不作为默认值自动填入 */
+  exampleModel: string;
+  /** 常用型号建议，由用户点击才会写入表单 */
+  suggestedModels: string[];
   supportsVision: boolean;
   requiresApiKey: boolean;
   apiKeyUrl?: string;
@@ -30,9 +33,9 @@ export const CUSTOM_PRESET: ProviderPreset = {
   name: '自定义（OpenAI 兼容）',
   vendor: 'Self-hosted',
   kind: 'openai-compatible',
-  defaultBaseUrl: '',
-  defaultModel: '',
-  models: [],
+  exampleBaseUrl: '',
+  exampleModel: '',
+  suggestedModels: [],
   supportsVision: true,
   requiresApiKey: true,
   note: '任何兼容 OpenAI /chat/completions 协议的服务，例如 vLLM、Ollama、One-API、New-API。',
@@ -44,9 +47,9 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     name: '平台内置（扣子）',
     vendor: 'Coze',
     kind: 'coze',
-    defaultBaseUrl: '',
-    defaultModel: 'doubao-seed-2-0-pro-260215',
-    models: ['doubao-seed-2-0-pro-260215'],
+    exampleBaseUrl: '',
+    exampleModel: 'doubao-seed-2-0-pro-260215',
+    suggestedModels: ['doubao-seed-2-0-pro-260215'],
     supportsVision: true,
     requiresApiKey: false,
     note: '部署在扣子编程内时使用项目运行时身份鉴权，无需填写 Key；本地/自建部署需配置 COZE_API_TOKEN 环境变量。',
@@ -56,9 +59,9 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     name: 'OpenAI',
     vendor: 'OpenAI',
     kind: 'openai-compatible',
-    defaultBaseUrl: 'https://api.openai.com/v1',
-    defaultModel: 'gpt-4o-mini',
-    models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1'],
+    exampleBaseUrl: 'https://api.openai.com/v1',
+    exampleModel: 'gpt-4o-mini',
+    suggestedModels: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1'],
     supportsVision: true,
     requiresApiKey: true,
     apiKeyUrl: 'https://platform.openai.com/api-keys',
@@ -68,9 +71,9 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     name: 'Anthropic Claude',
     vendor: 'Anthropic',
     kind: 'anthropic',
-    defaultBaseUrl: 'https://api.anthropic.com',
-    defaultModel: 'claude-3-5-sonnet-latest',
-    models: ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-7-sonnet-latest'],
+    exampleBaseUrl: 'https://api.anthropic.com',
+    exampleModel: 'claude-3-5-sonnet-latest',
+    suggestedModels: ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-7-sonnet-latest'],
     supportsVision: true,
     requiresApiKey: true,
     apiKeyUrl: 'https://console.anthropic.com/settings/keys',
@@ -80,9 +83,9 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     name: 'Google Gemini',
     vendor: 'Google',
     kind: 'gemini',
-    defaultBaseUrl: 'https://generativelanguage.googleapis.com',
-    defaultModel: 'gemini-2.0-flash',
-    models: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+    exampleBaseUrl: 'https://generativelanguage.googleapis.com',
+    exampleModel: 'gemini-2.0-flash',
+    suggestedModels: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
     supportsVision: true,
     requiresApiKey: true,
     apiKeyUrl: 'https://aistudio.google.com/app/apikey',
@@ -94,9 +97,9 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     vendor: '深度求索',
     kind: 'openai-compatible',
     // 官方文档（OpenAI 兼容）给的 base_url 就是不带版本的根地址
-    defaultBaseUrl: 'https://api.deepseek.com',
-    defaultModel: 'deepseek-flash',
-    models: ['deepseek-flash'],
+    exampleBaseUrl: 'https://api.deepseek.com',
+    exampleModel: 'deepseek-flash',
+    suggestedModels: ['deepseek-flash'],
     supportsVision: true,
     requiresApiKey: true,
     apiKeyUrl: 'https://platform.deepseek.com/api_keys',
@@ -107,9 +110,9 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     name: '月之暗面 Kimi',
     vendor: 'Moonshot AI',
     kind: 'openai-compatible',
-    defaultBaseUrl: 'https://api.moonshot.cn/v1',
-    defaultModel: 'moonshot-v1-8k-vision-preview',
-    models: ['moonshot-v1-8k-vision-preview', 'moonshot-v1-32k-vision-preview', 'kimi-latest'],
+    exampleBaseUrl: 'https://api.moonshot.cn/v1',
+    exampleModel: 'moonshot-v1-8k-vision-preview',
+    suggestedModels: ['moonshot-v1-8k-vision-preview', 'moonshot-v1-32k-vision-preview', 'kimi-latest'],
     supportsVision: true,
     requiresApiKey: true,
     apiKeyUrl: 'https://platform.moonshot.cn/console/api-keys',
@@ -119,9 +122,9 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     name: '智谱 GLM',
     vendor: '智谱 AI',
     kind: 'openai-compatible',
-    defaultBaseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    defaultModel: 'glm-4v-plus',
-    models: ['glm-4v-plus', 'glm-4v-flash', 'glm-4v'],
+    exampleBaseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    exampleModel: 'glm-4v-plus',
+    suggestedModels: ['glm-4v-plus', 'glm-4v-flash', 'glm-4v'],
     supportsVision: true,
     requiresApiKey: true,
     apiKeyUrl: 'https://bigmodel.cn/usercenter/apikeys',
@@ -131,9 +134,9 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     name: '通义千问 Qwen-VL',
     vendor: '阿里云百炼',
     kind: 'openai-compatible',
-    defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    defaultModel: 'qwen-vl-max',
-    models: ['qwen-vl-max', 'qwen-vl-plus', 'qwen2.5-vl-72b-instruct'],
+    exampleBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    exampleModel: 'qwen-vl-max',
+    suggestedModels: ['qwen-vl-max', 'qwen-vl-plus', 'qwen2.5-vl-72b-instruct'],
     supportsVision: true,
     requiresApiKey: true,
     apiKeyUrl: 'https://bailian.console.aliyun.com/',
@@ -174,14 +177,14 @@ export interface ResolvedProvider {
 
 export function resolveProvider(input: ProviderConfigInput): ResolvedProvider {
   const preset = findPreset(input.providerId) ?? CUSTOM_PRESET;
-  const apiKey = (input.apiKey ?? '').trim();
   return {
     providerId: preset.id,
     name: preset.name,
     kind: preset.kind,
-    baseUrl: (input.baseUrl ?? preset.defaultBaseUrl).trim() || preset.defaultBaseUrl,
-    apiKey,
-    model: (input.model ?? '').trim() || preset.defaultModel,
+    // 全部取自用户填写，不用预设兜底——否则预设过时会把用户的配置悄悄改掉
+    baseUrl: (input.baseUrl ?? '').trim(),
+    apiKey: (input.apiKey ?? '').trim(),
+    model: (input.model ?? '').trim(),
     temperature: clampTemperature(input.temperature),
     maxTokens: clampMaxTokens(input.maxTokens),
     thinking: input.thinking === true,
@@ -208,8 +211,8 @@ export function validateProvider(provider: ResolvedProvider): string[] {
   if (provider.kind !== 'coze') {
     if (!provider.baseUrl) problems.push('缺少 Base URL');
     if (preset?.requiresApiKey !== false && !provider.apiKey) problems.push('缺少 API Key');
-    if (!provider.model) problems.push('缺少模型名');
   }
+  if (!provider.model) problems.push('缺少模型名');
   return problems;
 }
 
@@ -272,11 +275,12 @@ export function buildGeminiEndpoint(baseUrl: string, model: string, apiKey: stri
  * Gemini 的密钥在 query 里，这里始终用占位符替换，避免泄漏。
  */
 export function describeRequestTarget(provider: ResolvedProvider): string {
+  if (provider.kind === 'coze') return '平台内置（扣子）';
+  if (!provider.baseUrl) return '（尚未填写 Base URL）';
   if (provider.kind === 'anthropic') return buildAnthropicEndpoint(provider.baseUrl);
   if (provider.kind === 'gemini') {
-    return buildGeminiEndpoint(provider.baseUrl, provider.model, '***');
+    return buildGeminiEndpoint(provider.baseUrl, provider.model || '{模型}', '***');
   }
-  if (provider.kind === 'coze') return '平台内置（扣子）';
   return buildOpenAIEndpoint(provider.baseUrl);
 }
 
