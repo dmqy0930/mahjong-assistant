@@ -1,13 +1,29 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, Camera, Calculator, Settings } from 'lucide-react';
+import { BookOpen, Camera, Calculator, Settings, UserRound } from 'lucide-react';
+import { currentDisplayName, getCurrentAccount } from '@/lib/auth/local-account';
 
 export default function HomePage() {
+  const [account, setAccount] = useState<{ email: string; name: string } | null>(null);
+
+  useEffect(() => {
+    const current = getCurrentAccount();
+    setAccount(current ? { email: current.email, name: currentDisplayName() } : null);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="pt-12 pb-8 px-6 text-center pattern-seigaiha">
+      <header className="relative pt-12 pb-8 px-6 text-center pattern-seigaiha">
+        <Link
+          href="/login"
+          className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[#17251D] border border-[#26382C] text-[#9FAF9E] hover:text-[#EFE9DA] hover:border-[#C9A24B]/50 transition-colors max-w-[9rem]"
+        >
+          <UserRound className="w-3.5 h-3.5 shrink-0" />
+          <span className="text-[10px] truncate">{account ? account.name : '登录 / 注册'}</span>
+        </Link>
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#17251D] border border-[#26382C] mb-4">
           <span className="text-3xl font-serif font-bold text-[#C9A24B]">雀</span>
         </div>
