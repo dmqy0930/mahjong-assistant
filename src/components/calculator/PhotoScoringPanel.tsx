@@ -91,6 +91,10 @@ export function PhotoScoringPanel({
         setError(`${data.error}${data.probe ? `（本次发送：${data.probe.detectedType}）` : ''}`);
         return;
       }
+      const warnings: string[] = data._meta?.warnings ?? [];
+      if (warnings.length > 0) {
+        setError(`识别结果可能不准确：${warnings.join('；')}。请核对牌面后再应用。`);
+      }
       if (!data.handTiles) return;
 
       const tiles: Tile[] = sortTiles(

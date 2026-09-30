@@ -142,6 +142,11 @@ export default function CalculatorPage() {
         return;
       }
 
+      const warnings: string[] = data._meta?.warnings ?? [];
+      if (warnings.length > 0) {
+        setError(`识别结果可能不准确：${warnings.join('；')}。请人工核对后再算分。`);
+      }
+
       // Parse recognition result
       if (data.handTiles) {
         const tiles: Tile[] = sortTiles(

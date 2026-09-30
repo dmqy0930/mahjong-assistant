@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { HeaderUtils } from 'coze-coding-dev-sdk';
 import { ProviderError, runChat } from '@/lib/ai/dispatch';
-import { RECOGNIZE_SYSTEM_PROMPT, RECOGNIZE_USER_TEXT, extractJsonObject } from '@/lib/ai/prompt';
+import {
+  RECOGNIZE_SYSTEM_PROMPT,
+  RECOGNIZE_USER_TEXT,
+  buildCorrectionText,
+  extractJsonObject,
+} from '@/lib/ai/prompt';
+import { checkRecognition } from '@/lib/mahjong/recognition-check';
 import {
   describeRequestTarget,
   resolveProvider,
@@ -72,7 +78,37 @@ export async function POST(request: NextRequest) {
       forwardHeaders: HeaderUtils.extractForwardHeaders(request.headers),
     });
 
-    const parsed = extractJsonObject(result.text);
+    let parsed = extractJsonObject(result.text);
+    let problems = parsed ? checkRecognition(parsed) : ['返回内容不是合法 JSON'];
+    let retried = false;
+    let elapsedMs = result.latencyMs;
+
+    // 麻将的物理约束很硬（张数、每种不超过 4 张、和了牌必在手牌里），
+    // 把违反项回喂给模型让它对照照片重出一遍，能显著提高准确率。
+    if (problems.length > 0) {
+      try {
+        const retry = await runChat(provider, {
+          systemPrompt: RECOGNIZE_SYSTEM_PROMPT,
+          userText: buildCorrectionText(problems, result.text),
+          imageDataUrl: imageBase64,
+          forwardHeaders: HeaderUtils.extractForwardHeaders(request.headers),
+        });
+        const reparsed = extractJsonObject(retry.text);
+        if (reparsed) {
+          const rechecked = checkRecognition(reparsed);
+          // 只有确实改善了才采纳，避免越修越差
+          if (rechecked.length < problems.length) {
+            parsed = reparsed;
+            problems = rechecked;
+          }
+        }
+        retried = true;
+        elapsedMs += retry.latencyMs;
+      } catch (retryError) {
+        console.error('[recognize] correction pass failed:', retryError);
+      }
+    }
+
     if (!parsed) {
       return NextResponse.json(
         { error: '无法解析识别结果，请重试或更换模型', raw: result.text.slice(0, 500) },
@@ -82,7 +118,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ...(parsed as Record<string, unknown>),
-      _meta: { providerId: result.providerId, model: result.model, latencyMs: result.latencyMs },
+      _meta: {
+        providerId: result.providerId,
+        model: result.model,
+        latencyMs: elapsedMs,
+        retried,
+        warnings: problems,
+      },
     });
   } catch (error) {
     if (error instanceof ProviderError) {
