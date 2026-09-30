@@ -6,7 +6,7 @@ export const TERMS: Term[] = [
   { id: 'furo', term: '副露', termJp: '副露', category: '基础', description: '通过吃、碰、明杠将他人的牌纳入自己手牌组成面子的行为。副露后不能立直。' },
   { id: 'dora', term: '宝牌', termJp: 'ドラ', category: '基础', description: '宝牌指示牌的下一张牌。每张宝牌加1番，但不构成役。宝牌指示牌在牌山中翻开显示。' },
   { id: 'ura_dora', term: '里宝牌', termJp: '裏ドラ', category: '基础', description: '表宝牌指示牌正下方的牌为里宝牌指示牌。仅立直和牌时才能计算里宝牌。' },
-  { id: 'aka_dora', term: '赤宝牌', termJp: '赤ドラ', category: '基础', description: '红色标记的数牌（通常为5万、5筒、5索各一张红牌），效果等同于宝牌，每张加1番。' },
+  { id: 'aka_dora', term: '赤宝牌', termJp: '赤ドラ', category: '基础', description: '红色标记的数牌（通常为5万、5筒、5条各一张红牌），效果等同于宝牌，每张加1番。' },
   { id: 'furiten', term: '振听', termJp: '振り聴', category: '基础', description: '自己曾打出的牌中包含可以和的牌，则不能荣和，只能自摸。分为舍牌振听、同巡振听、立直后振听三种。' },
   { id: 'ippatsu', term: '一发', termJp: '一発', category: '基础', description: '立直后，在自己第一次摸牌前（无人副露的情况下）和牌，追加1番。' },
   { id: 'rinshan', term: '岭上开花', termJp: '嶺上開花', category: '基础', description: '开杠后从岭上牌区摸牌并和牌。1番。' },

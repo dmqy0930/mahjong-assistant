@@ -1,7 +1,7 @@
 // 日本麻将类型定义
 
 // 牌的种类
-export type TileSuit = 'man' | 'pin' | 'sou' | 'honor'; // 万子、筒子、索子、字牌
+export type TileSuit = 'man' | 'pin' | 'sou' | 'honor'; // 万子、筒子、条子、字牌
 export type HonorType = 'wind' | 'dragon'; // 风牌、三元牌
 export type WindType = 'east' | 'south' | 'west' | 'north';
 

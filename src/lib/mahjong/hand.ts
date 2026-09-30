@@ -11,7 +11,7 @@ import { isGreen } from './calculator';
 import { YAKU_LIST } from './yaku';
 
 /**
- * 牌索引：0-8 万1-9，9-17 筒1-9，18-26 索1-9，27-33 字牌（东南西北白发中）
+ * 牌索引：0-8 万1-9，9-17 筒1-9，18-26 条1-9，27-33 字牌（东南西北白发中）
  */
 export const TILE_KIND_COUNT = 34;
 
@@ -218,7 +218,7 @@ function detectYakuman(ctx: EvalContext): string[] {
   if (presentIndices.every(i => i >= 27)) ids.push('tsuiisou');
   if (presentIndices.every(i => i < 27 && isYaochuuIndex(i))) ids.push('chinroutou');
 
-  // 绿一色（仅索子 2/3/4/6/8 与发）
+  // 绿一色（仅条子 2/3/4/6/8 与发）
   const allTilesGreen = presentIndices.every(i => isGreen(indexToTile(i)));
   if (allTilesGreen) ids.push('ryuiisou');
 

@@ -6,8 +6,62 @@
  * 解码 → 等比缩放 → 重新编码为 JPEG，一次性解决格式、体积两个问题。
  */
 
-export const DEFAULT_MAX_EDGE = 1600;
+export const DEFAULT_MAX_EDGE = 2400;
 export const DEFAULT_QUALITY = 0.82;
+/** 单张图片 dataURL 的字符上限，超出会自动降质/缩小（服务端上限是 4MB 字符） */
+export const DEFAULT_MAX_DATA_URL_CHARS = 3_800_000;
+
+export interface CompressionStep {
+  maxEdge: number;
+  quality: number;
+}
+
+/**
+ * 压缩尝试序列：先降质量，降到 0.5 之后再降分辨率。
+ * 牌面细节重要，所以尽量保分辨率、优先牺牲画质。
+ */
+export function compressionLadder(
+  maxEdge: number,
+  quality: number,
+  steps = 6,
+): CompressionStep[] {
+  const ladder: CompressionStep[] = [];
+  let edge = maxEdge;
+  let q = quality;
+
+  for (let i = 0; i < steps; i++) {
+    ladder.push({ maxEdge: Math.round(edge), quality: Number(q.toFixed(2)) });
+    if (q > 0.5) q = Math.max(0.5, q - 0.15);
+    else edge = edge * 0.75;
+    if (edge < 800) break;
+  }
+  return ladder;
+}
+
+function renderJpeg(
+  image: DecodedImage,
+  width: number,
+  height: number,
+  quality: number,
+): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new ImageDecodeError('当前浏览器不支持 Canvas，无法处理图片。');
+
+  // 铺白底，避免带透明通道的 PNG 转 JPEG 后变成黑底
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(image, 0, 0, width, height);
+
+  const dataUrl = canvas.toDataURL('image/jpeg', quality);
+  if (!dataUrl.startsWith('data:image/jpeg')) {
+    throw new ImageDecodeError('图片转码失败，请换一张图片重试。');
+  }
+  return dataUrl;
+}
 
 export interface TargetSize {
   width: number;
@@ -127,6 +181,8 @@ export function formatProbe(probe: ImageProbe): string {
 export interface PrepareOptions {
   maxEdge?: number;
   quality?: number;
+  /** dataURL 字符上限，超出则自动降质/缩小 */
+  maxDataUrlChars?: number;
 }
 
 type DecodedImage = ImageBitmap | HTMLImageElement;
@@ -161,36 +217,35 @@ export async function prepareImageForUpload(
 ): Promise<PreparedImage> {
   const maxEdge = options.maxEdge ?? DEFAULT_MAX_EDGE;
   const quality = options.quality ?? DEFAULT_QUALITY;
+  const maxChars = options.maxDataUrlChars ?? DEFAULT_MAX_DATA_URL_CHARS;
 
   const image = await decode(file);
-  const target = computeTargetSize(image.width, image.height, maxEdge);
+  // ImageBitmap 一旦 close 就不能再读尺寸，先记下来
+  const sourceWidth = image.width;
+  const sourceHeight = image.height;
+  let dataUrl = '';
+  let width = sourceWidth;
+  let height = sourceHeight;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = target.width;
-  canvas.height = target.height;
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new ImageDecodeError('当前浏览器不支持 Canvas，无法处理图片。');
-
-  // 铺白底，避免带透明通道的 PNG 转 JPEG 后变成黑底
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, target.width, target.height);
-  ctx.drawImage(image, 0, 0, target.width, target.height);
-
-  if (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap) image.close();
-
-  const dataUrl = canvas.toDataURL('image/jpeg', quality);
-  if (!dataUrl.startsWith('data:image/jpeg')) {
-    throw new ImageDecodeError('图片转码失败，请换一张图片重试。');
+  try {
+    for (const step of compressionLadder(maxEdge, quality)) {
+      const target = computeTargetSize(sourceWidth, sourceHeight, step.maxEdge);
+      dataUrl = renderJpeg(image, target.width, target.height, step.quality);
+      width = target.width;
+      height = target.height;
+      if (dataUrl.length <= maxChars) break;
+    }
+  } finally {
+    if (typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap) image.close();
   }
 
   return {
     dataUrl,
     mediaType: 'image/jpeg',
     bytes: estimateDataUrlBytes(dataUrl),
-    width: target.width,
-    height: target.height,
-    scaled: target.scaled,
+    width,
+    height,
+    scaled: width !== sourceWidth || height !== sourceHeight,
     converted: file.type !== 'image/jpeg',
     sourceType: file.type || '未知',
     sourceBytes: file.size,

@@ -33,7 +33,7 @@ export function TilePicker({ onSelect, onClose }: TilePickerProps) {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <TileGroup title="万子" tiles={manTiles} onSelect={onSelect} color="#C4463A" />
         <TileGroup title="筒子" tiles={pinTiles} onSelect={onSelect} color="#2C6CA8" />
-        <TileGroup title="索子" tiles={souTiles} onSelect={onSelect} color="#2F8B4C" />
+        <TileGroup title="条子" tiles={souTiles} onSelect={onSelect} color="#2F8B4C" />
         <TileGroup title="字牌" tiles={honorTiles} onSelect={onSelect} color="#EFE9DA" />
       </div>
     </div>

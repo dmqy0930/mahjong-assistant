@@ -4,7 +4,7 @@ import type { Tile } from './types';
 const SUIT_LABELS: Record<string, string> = {
   man: '万',
   pin: '筒',
-  sou: '索',
+  sou: '条',
 };
 
 const HONOR_LABELS: Record<number, string> = {

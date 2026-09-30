@@ -21,14 +21,14 @@ export const YAKU_LIST: Yaku[] = [
   { id: 'houtei', name: '河底捞鱼', nameJp: '河底撈魚', han: 1, hanOpen: 1, isYakuman: false, description: '荣和他人打出的最后一张牌。' },
 
   // === 2番 ===
-  { id: 'sanshoku_doujun', name: '三色同顺', nameJp: '三色同順', han: 2, hanOpen: 1, isYakuman: false, description: '万、筒、索各有一组相同数字的顺子。' },
+  { id: 'sanshoku_doujun', name: '三色同顺', nameJp: '三色同順', han: 2, hanOpen: 1, isYakuman: false, description: '万、筒、条各有一组相同数字的顺子。' },
   { id: 'ikkitsuukan', name: '一气通贯', nameJp: '一気通貫', han: 2, hanOpen: 1, isYakuman: false, description: '同一花色有123、456、789三组顺子。' },
   { id: 'chantaiyao', name: '混全带幺九', nameJp: '混全帯幺九', han: 2, hanOpen: 1, isYakuman: false, description: '所有面子和雀头都含幺九牌，且有字牌。' },
   { id: 'chitoitsu', name: '七对子', nameJp: '七対子', han: 2, hanOpen: 0, isYakuman: false, description: '7组不同的对子。门清限定，25符固定。' },
   { id: 'toitoi', name: '对对和', nameJp: '対々和', han: 2, hanOpen: 2, isYakuman: false, description: '全部由刻子（杠子）组成。' },
   { id: 'sanankou', name: '三暗刻', nameJp: '三暗刻', han: 2, hanOpen: 2, isYakuman: false, description: '有三组暗刻（含暗杠）。' },
   { id: 'sankantsu', name: '三杠子', nameJp: '三槓子', han: 2, hanOpen: 2, isYakuman: false, description: '有三组杠子。' },
-  { id: 'sanshoku_doukou', name: '三色同刻', nameJp: '三色同刻', han: 2, hanOpen: 2, isYakuman: false, description: '万、筒、索各有一组相同数字的刻子。' },
+  { id: 'sanshoku_doukou', name: '三色同刻', nameJp: '三色同刻', han: 2, hanOpen: 2, isYakuman: false, description: '万、筒、条各有一组相同数字的刻子。' },
   { id: 'shousangen', name: '小三元', nameJp: '小三元', han: 2, hanOpen: 2, isYakuman: false, description: '白、发、中其中两组为刻子/杠子，另一组为雀头。' },
   { id: 'honroutou', name: '混老頭', nameJp: '混老頭', han: 2, hanOpen: 2, isYakuman: false, description: '全部由幺九牌和字牌组成，且所有面子均为刻子/杠子。' },
 
@@ -50,7 +50,7 @@ export const YAKU_LIST: Yaku[] = [
   { id: 'daisuushii', name: '大四喜', nameJp: '大四喜', han: 26, hanOpen: 26, isYakuman: true, description: '四组风牌刻子。双倍役满。' },
   { id: 'tsuiisou', name: '字一色', nameJp: '字一色', han: 13, hanOpen: 13, isYakuman: true, description: '全部由字牌组成。' },
   { id: 'chinroutou', name: '清老头', nameJp: '清老頭', han: 13, hanOpen: 13, isYakuman: true, description: '全部由1和9的数牌组成。' },
-  { id: 'ryuiisou', name: '绿一色', nameJp: '緑一色', han: 13, hanOpen: 13, isYakuman: true, description: '全部由绿色牌组成（2346索+发）。' },
+  { id: 'ryuiisou', name: '绿一色', nameJp: '緑一色', han: 13, hanOpen: 13, isYakuman: true, description: '全部由绿色牌组成（2346条+发）。' },
   { id: 'suukantsu', name: '四杠子', nameJp: '四槓子', han: 13, hanOpen: 13, isYakuman: true, description: '有四组杠子。' },
   { id: 'chuuren', name: '九莲宝灯', nameJp: '九蓮宝燈', han: 13, hanOpen: 13, isYakuman: true, description: '门清，同一花色1112345678999加任意一张同花色牌。' },
   { id: 'chuuren_pure', name: '纯正九莲宝灯', nameJp: '純正九蓮宝燈', han: 26, hanOpen: 26, isYakuman: true, description: '九莲宝灯听1112345678999中的特定牌。双倍役满。' },
@@ -73,7 +73,7 @@ export const DORA_INFO = {
   types: [
     { name: '表宝牌', nameJp: '表ドラ', description: '宝牌指示牌的下一张牌为宝牌。数牌按数字顺序，字牌按东南西北白发中顺序，9/北/中之后回到1/东/白。' },
     { name: '里宝牌', nameJp: '裏ドラ', description: '立直和牌时，表宝牌指示牌下方的牌为里宝牌指示牌。仅立直者可计算。' },
-    { name: '赤宝牌', nameJp: '赤ドラ', description: '红色标记的数牌（通常5万、5筒、5索各一张），每张加1番。' },
+    { name: '赤宝牌', nameJp: '赤ドラ', description: '红色标记的数牌（通常5万、5筒、5条各一张），每张加1番。' },
     { name: '拔宝牌', nameJp: '抜きドラ', description: '北牌作为宝牌的特殊规则（部分规则使用）。' },
   ],
 };

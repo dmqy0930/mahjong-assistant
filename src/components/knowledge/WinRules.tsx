@@ -14,7 +14,7 @@ export function WinRules() {
           <div className="flex flex-wrap gap-1 items-center">
             <TileGroup label="[1-2-3万]" />
             <TileGroup label="[5-6-7筒]" />
-            <TileGroup label="[2-2-2索]" />
+            <TileGroup label="[2-2-2条]" />
             <TileGroup label="[7-8-9万]" />
             <TileGroup label="[東-東]" highlight />
           </div>
@@ -37,8 +37,8 @@ export function WinRules() {
             <TileGroup label="[3-3万]" />
             <TileGroup label="[5-5筒]" />
             <TileGroup label="[7-7筒]" />
-            <TileGroup label="[2-2索]" />
-            <TileGroup label="[8-8索]" />
+            <TileGroup label="[2-2条]" />
+            <TileGroup label="[8-8条]" />
             <TileGroup label="[中-中]" />
           </div>
         </div>
@@ -56,7 +56,7 @@ export function WinRules() {
         <div className="bg-[#0F1A15] rounded-md p-3 mb-3">
           <p className="text-xs text-[#9FAF9E] mb-2">13种幺九牌：</p>
           <div className="flex flex-wrap gap-1">
-            {['1万', '9万', '1筒', '9筒', '1索', '9索', '東', '南', '西', '北', '白', '發', '中'].map(t => (
+            {['1万', '9万', '1筒', '9筒', '1条', '9条', '東', '南', '西', '北', '白', '發', '中'].map(t => (
               <span key={t} className="inline-block px-2 py-1 bg-[#17251D] rounded text-xs text-[#EFE9DA]">{t}</span>
             ))}
           </div>
