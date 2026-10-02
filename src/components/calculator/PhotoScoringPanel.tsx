@@ -8,6 +8,7 @@ import { calculatePoints, getLimitTypeName, getDoraTilesFromIndicators } from '@
 import { computeScoreChanges, type PlayerCount, type ThreePlayerTsumoRule } from '@/lib/mahjong/scoring';
 import { createTile, sortTiles } from '@/lib/mahjong/tile-utils';
 import { describePreparedImage, prepareImageForUpload } from '@/lib/ai/image';
+import { readJsonResponse } from '@/lib/ai/http';
 import { getActiveProviderConfig, loadAiSettings } from '@/lib/ai/storage';
 import { YAKU_LIST } from '@/lib/mahjong/yaku';
 import { TileDisplay } from './TileDisplay';
@@ -84,14 +85,22 @@ export function PhotoScoringPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: prepared.dataUrl, provider }),
       });
-      if (res.status === 413) {
-        setError(
-          `图片过大（${Math.round((prepared.bytes / 1024 / 1024) * 10) / 10}MB），被服务器拒绝。` +
-            'Vercel 部署对请求体有约 4.5MB 的硬限制，可改用自建部署或先压缩图片。',
-        );
+      const parsedResponse = await readJsonResponse(res);
+      if (!parsedResponse.ok) {
+        setError(parsedResponse.error ?? '识别失败');
         return;
       }
-      const data = await res.json();
+      const data = parsedResponse.data as Record<string, unknown> & {
+        error?: string;
+        probe?: { detectedType: string };
+        _meta?: { warnings?: string[] };
+        handTiles?: { suit: string; rank: number; isRed?: boolean }[];
+        winTile?: { suit: string; rank: number };
+        doraIndicators?: { suit: string; rank: number }[];
+        doraTiles?: { suit: string; rank: number }[];
+        winType?: WinType;
+        isTsumo?: boolean;
+      };
       if (data.error) {
         setError(`${data.error}${data.probe ? `（本次发送：${data.probe.detectedType}）` : ''}`);
         return;
@@ -108,7 +117,7 @@ export function PhotoScoringPanel({
         ),
       );
       const matchedWin = data.winTile
-        ? tiles.find((t: Tile) => t.suit === data.winTile.suit && t.rank === data.winTile.rank)
+        ? tiles.find((t: Tile) => t.suit === data.winTile?.suit && t.rank === data.winTile?.rank)
         : undefined;
       const indicators: { suit: string; rank: number }[] =
         data.doraIndicators ?? data.doraTiles ?? [];

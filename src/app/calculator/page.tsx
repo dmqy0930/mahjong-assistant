@@ -17,6 +17,7 @@ import { createTile, sortTiles } from '@/lib/mahjong/tile-utils';
 import { resolveProvider, validateProvider } from '@/lib/ai/providers';
 import { getActiveProviderConfig, loadAiSettings } from '@/lib/ai/storage';
 import { describePreparedImage, prepareImageForUpload } from '@/lib/ai/image';
+import { readJsonResponse } from '@/lib/ai/http';
 import { TileDisplay } from '@/components/calculator/TileDisplay';
 import { TilePicker } from '@/components/calculator/TilePicker';
 
@@ -131,14 +132,23 @@ export default function CalculatorPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: prepared.dataUrl, provider }),
       });
-      if (res.status === 413) {
-        setError(
-          `图片过大（${Math.round(prepared.bytes / 1024 / 1024 * 10) / 10}MB），被服务器拒绝。` +
-            'Vercel 部署对请求体有约 4.5MB 的硬限制，可改用自建部署或先压缩图片。',
-        );
+      const parsedResponse = await readJsonResponse(res);
+      if (!parsedResponse.ok) {
+        setError(parsedResponse.error ?? '识别失败');
         return;
       }
-      const data = await res.json();
+      const data = parsedResponse.data as Record<string, unknown> & {
+        error?: string;
+        probe?: { detectedType: string; bytes: number };
+        _meta?: { warnings?: string[] };
+        handTiles?: { suit: string; rank: number; isRed?: boolean }[];
+        winTile?: { suit: string; rank: number };
+        doraIndicators?: { suit: string; rank: number }[];
+        doraTiles?: { suit: string; rank: number }[];
+        winType?: WinType;
+        isTsumo?: boolean;
+        isMenzen?: boolean;
+      };
 
       if (data.error) {
         const sent = data.probe
@@ -163,7 +173,7 @@ export default function CalculatorPage() {
         const recognizedWin =
           data.winTile &&
           tiles.find(
-            (t: Tile) => t.suit === data.winTile.suit && t.rank === data.winTile.rank,
+            (t: Tile) => t.suit === data.winTile?.suit && t.rank === data.winTile?.rank,
           );
         const winTile: Tile | null = recognizedWin ?? tiles[tiles.length - 1] ?? null;
         const indicators: { suit: string; rank: number }[] =
