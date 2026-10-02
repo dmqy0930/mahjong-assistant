@@ -44,6 +44,12 @@ function friendly(message: string): string {
   if (message.includes('join_rejected')) return '你的加入申请被拒绝了';
   if (message.includes('not_a_member')) return '你还不是这个房间的成员，请先申请加入';
   if (message.includes('not_host')) return '只有房主可以做这个操作';
+  if (message.includes('Invalid path specified'))
+    return 'Supabase 地址配置有误：NEXT_PUBLIC_SUPABASE_URL 只能填到 https://<项目ref>.supabase.co，不要带结尾斜杠或 /rest/v1 之类的路径';
+  if (message.includes('Invalid API key') || message.includes('No API key found'))
+    return 'Supabase 密钥无效：请确认 NEXT_PUBLIC_SUPABASE_ANON_KEY 填的是 anon / publishable key，而不是 service_role';
+  if (message.includes('Could not find the function') || message.includes('PGRST202'))
+    return '数据库里没有房间相关的函数：请先在 Supabase 的 SQL Editor 里执行 supabase/schema.sql';
   if (message.toLowerCase().includes('failed to fetch')) return '网络异常，请检查网络后重试';
   return message;
 }

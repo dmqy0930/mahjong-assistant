@@ -3,13 +3,50 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * 房间功能依赖 Supabase。未配置环境变量时整个功能优雅降级，
- * 界面会提示需要先完成配置，而不是直接报错。
+ * 去掉结尾斜杠，以及误抄进来的 /rest/v1 之类的路径。
+ * 环境变量里多一个斜杠或一段路径，请求就会变成
+ * https://xxx.supabase.co/dashboard/rest/v1/... ，网关直接报
+ * "Invalid path specified in request URL"。
  */
+export function normalizeSupabaseUrl(raw: string | undefined): string {
+  let value = (raw ?? '').trim();
+  if (!value) return '';
+  value = value.replace(/\/+$/, '');
+  value = value.replace(/\/rest\/v1$/i, '');
+  return value.replace(/\/+$/, '');
+}
+
+/** 返回配置问题描述；null 表示配置可用 */
+export function roomConfigProblem(): string | null {
+  const url = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const key = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+
+  if (!url || !key) {
+    return '房间服务未配置：请在部署平台设置 NEXT_PUBLIC_SUPABASE_URL 与 NEXT_PUBLIC_SUPABASE_ANON_KEY';
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return `NEXT_PUBLIC_SUPABASE_URL 格式不正确：${url}`;
+  }
+
+  if (parsed.protocol !== 'https:') {
+    return `NEXT_PUBLIC_SUPABASE_URL 必须是 https：当前是 ${url}`;
+  }
+  if (!/\.supabase\.(co|in)$/i.test(parsed.hostname)) {
+    return `NEXT_PUBLIC_SUPABASE_URL 看起来不是 Supabase 项目地址：${url}。应形如 https://<项目ref>.supabase.co`;
+  }
+  if (parsed.pathname && parsed.pathname !== '/') {
+    return `NEXT_PUBLIC_SUPABASE_URL 不应带路径：${url}。请只填到 .supabase.co 为止，不要带 /rest/v1 等后缀`;
+  }
+  return null;
+}
+
+/** 房间功能依赖 Supabase；配置不完整时整个功能优雅降级 */
 export function roomServiceConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
+  return roomConfigProblem() === null;
 }
 
 let cached: SupabaseClient | null = null;
@@ -61,8 +98,8 @@ export function getRoomClient(): SupabaseClient | null {
   if (!roomServiceConfigured()) return null;
   if (!cached) {
     cached = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
+      normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL),
+      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim(),
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
   }

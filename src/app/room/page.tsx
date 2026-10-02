@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AlertTriangle, ArrowLeft, DoorOpen, Loader2, Plus } from 'lucide-react';
 import { createRoom } from '@/lib/room/api';
-import { roomServiceConfigured } from '@/lib/room/client';
+import { roomConfigProblem, roomServiceConfigured } from '@/lib/room/client';
 import {
   DEFAULT_ROOM_META,
   getRoomToken,
@@ -19,7 +19,7 @@ import { currentDisplayName } from '@/lib/auth/local-account';
 
 export default function RoomIndexPage() {
   const router = useRouter();
-  const [configured, setConfigured] = useState(true);
+  const [configProblem, setConfigProblem] = useState<string | null>(null);
   const [meta, setMeta] = useState<RoomMeta>(DEFAULT_ROOM_META);
   const [joinCode, setJoinCode] = useState('');
   const [roomCode, setRoomCode] = useState(() => randomRoomCode());
@@ -27,8 +27,10 @@ export default function RoomIndexPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setConfigured(roomServiceConfigured());
+    setConfigProblem(roomConfigProblem());
   }, []);
+
+  const configured = roomServiceConfigured();
 
   const visibleNames = useMemo(
     () => meta.playerNames.slice(0, meta.playerCount),
@@ -83,12 +85,13 @@ export default function RoomIndexPage() {
       </header>
 
       <main className="flex-1 px-4 py-4 max-w-lg mx-auto w-full space-y-4">
-        {!configured && (
+        {configProblem && (
           <section className="bg-[#C4463A]/10 border border-[#C4463A]/30 rounded-lg p-4">
             <h2 className="text-sm font-medium text-[#C4463A] mb-1 flex items-center gap-1.5">
               <AlertTriangle className="w-4 h-4" />
-              房间服务尚未配置
+              房间服务不可用
             </h2>
+            <p className="text-xs text-[#C4463A] leading-relaxed mb-2">{configProblem}</p>
             <p className="text-xs text-[#9FAF9E] leading-relaxed">
               房间需要服务端存储才能多人共享。请先完成两步：
               <br />
