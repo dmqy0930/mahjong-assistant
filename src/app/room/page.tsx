@@ -15,12 +15,18 @@ import {
   type RoomMeta,
 } from '@/lib/room/types';
 import { THREE_PLAYER_TSUMO_RULES, type PlayerCount } from '@/lib/mahjong/scoring';
-import { currentDisplayName } from '@/lib/auth/local-account';
+import { getNickname } from '@/lib/auth/profile';
 
 export default function RoomIndexPage() {
   const router = useRouter();
   const [configProblem, setConfigProblem] = useState<string | null>(null);
-  const [meta, setMeta] = useState<RoomMeta>(DEFAULT_ROOM_META);
+  const [meta, setMeta] = useState<RoomMeta>(() => ({
+    ...DEFAULT_ROOM_META,
+    playerNames: [
+      getNickname() || DEFAULT_ROOM_META.playerNames[0],
+      ...DEFAULT_ROOM_META.playerNames.slice(1),
+    ],
+  }));
   const [joinCode, setJoinCode] = useState('');
   const [roomCode, setRoomCode] = useState(() => randomRoomCode());
   const [busy, setBusy] = useState(false);
@@ -52,7 +58,7 @@ export default function RoomIndexPage() {
         { ...meta, playerNames: visibleNames },
         code,
         getRoomToken(code),
-        currentDisplayName() || '房主',
+        getNickname() || '房主',
       );
       if (!result.ok || !result.data) {
         setError(result.error ?? '创建失败');

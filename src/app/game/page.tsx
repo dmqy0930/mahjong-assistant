@@ -25,7 +25,7 @@ import {
 import { createRoom } from '@/lib/room/api';
 import { roomServiceConfigured } from '@/lib/room/client';
 import { getRoomToken, randomRoomCode } from '@/lib/room/types';
-import { currentDisplayName } from '@/lib/auth/local-account';
+import { getNickname } from '@/lib/auth/profile';
 
 interface Player {
   name: string;
@@ -423,7 +423,10 @@ function NewGameModal({ onCreate, onClose }: {
   const router = useRouter();
   const [playerCount, setPlayerCount] = useState<PlayerCount>(4);
   const [tsumoRule, setTsumoRule] = useState<ThreePlayerTsumoRule>('split-half');
-  const [names, setNames] = useState(['玩家1', '玩家2', '玩家3', '玩家4']);
+  const [names, setNames] = useState(() => {
+    const mine = getNickname();
+    return [mine || '玩家1', '玩家2', '玩家3', '玩家4'];
+  });
   const [startScore, setStartScore] = useState(25000);
   const [sharedRoom, setSharedRoom] = useState(false);
   const [roomCode, setRoomCode] = useState(() => randomRoomCode());
@@ -453,7 +456,7 @@ function NewGameModal({ onCreate, onClose }: {
         { playerNames: visibleNames, playerCount, threePlayerTsumoRule: tsumoRule, startScore },
         code,
         getRoomToken(code),
-        currentDisplayName() || '房主',
+        getNickname() || '房主',
       );
       if (!result.ok || !result.data) {
         setRoomError(result.error ?? '创建房间失败');

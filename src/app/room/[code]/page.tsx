@@ -33,7 +33,7 @@ import {
   type PendingMember,
   type RoundPayload,
 } from '@/lib/room/types';
-import { currentDisplayName } from '@/lib/auth/local-account';
+import { getNickname } from '@/lib/auth/profile';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -55,7 +55,7 @@ export default function RoomPage() {
 
   useEffect(() => {
     setToken(getRoomToken(code));
-    setNickname(currentDisplayName() || '玩家');
+    setNickname(getNickname() || '');
   }, [code]);
 
   const refresh = useCallback(async () => {
@@ -251,6 +251,15 @@ export default function RoomPage() {
               </button>
             </div>
             {notice && <p className="text-xs text-[#C4463A] mt-2">{notice}</p>}
+            {!getNickname() && (
+              <p className="text-[10px] text-[#55695B] mt-2">
+                还没有设置昵称？可以先去{' '}
+                <Link href="/profile" className="text-[#C9A24B] underline">
+                  设置一个
+                </Link>
+                ，之后会自动填上。
+              </p>
+            )}
           </section>
         )}
 
