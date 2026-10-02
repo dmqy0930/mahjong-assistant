@@ -1,4 +1,3 @@
-import { Config, LLMClient } from 'coze-coding-dev-sdk';
 import {
   buildAnthropicBody,
   buildAnthropicEndpoint,
@@ -77,6 +76,10 @@ export async function runChat(
 }
 
 async function callCoze(provider: ResolvedProvider, input: RunChatInput): Promise<string> {
+  // 按需加载：扣子 SDK 体积很大，且只在用内置通道时才需要。
+  // 放在模块顶层会让任何厂商的请求都依赖它能否在运行环境里加载成功，
+  // 一旦加载失败就是整个函数崩溃（平台错误页），而不是一条可读的错误。
+  const { Config, LLMClient } = await import('coze-coding-dev-sdk');
   const client = new LLMClient(new Config(), input.forwardHeaders ?? {});
 
   const userContent = input.imageDataUrl

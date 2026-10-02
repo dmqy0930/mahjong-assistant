@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { HeaderUtils } from 'coze-coding-dev-sdk';
 import { ProviderError, runChat } from '@/lib/ai/dispatch';
+import { extractForwardHeaders } from '@/lib/ai/forward-headers';
 import {
   describeRequestTarget,
   resolveProvider,
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         : '请只回复四个字：连通正常',
       imageDataUrl: probeImage,
       maxTokens: 64,
-      forwardHeaders: HeaderUtils.extractForwardHeaders(request.headers),
+      forwardHeaders: await extractForwardHeaders(request.headers),
     });
 
     return NextResponse.json({

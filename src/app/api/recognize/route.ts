@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { HeaderUtils } from 'coze-coding-dev-sdk';
 import { ProviderError, runChat } from '@/lib/ai/dispatch';
+import { extractForwardHeaders } from '@/lib/ai/forward-headers';
 import {
   RECOGNIZE_SYSTEM_PROMPT,
   RECOGNIZE_USER_TEXT,
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       systemPrompt: RECOGNIZE_SYSTEM_PROMPT,
       userText: RECOGNIZE_USER_TEXT,
       imageDataUrl: imageBase64,
-      forwardHeaders: HeaderUtils.extractForwardHeaders(request.headers),
+      forwardHeaders: await extractForwardHeaders(request.headers),
     });
 
     let parsed = extractJsonObject(result.text);
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
           systemPrompt: RECOGNIZE_SYSTEM_PROMPT,
           userText: buildCorrectionText(problems, result.text),
           imageDataUrl: imageBase64,
-          forwardHeaders: HeaderUtils.extractForwardHeaders(request.headers),
+          forwardHeaders: await extractForwardHeaders(request.headers),
         });
         const reparsed = extractJsonObject(retry.text);
         if (reparsed) {
