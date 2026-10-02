@@ -64,6 +64,7 @@ export async function runChat(
           maxTokens,
           temperature: provider.temperature,
           thinking: provider.thinking,
+          thinkingStyle: provider.thinkingStyle,
         });
 
   return {

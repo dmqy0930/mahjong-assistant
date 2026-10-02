@@ -131,19 +131,48 @@ describe('请求体构造', () => {
   });
 
   // 推理模型会先用 reasoning tokens 思考且与 max_tokens 共享额度，
-  // 因此请求体始终显式声明 thinking，缺省为 disabled
-  it('OpenAI 兼容请求体总是携带 thinking，缺省关闭', () => {
-    const body = buildOpenAIBody('deepseek-flash', content) as {
-      thinking: { type: string };
-      max_tokens: number;
-    };
+  // 因此需要显式声明；但各家字段名不同，不能统一发送。
+  it('DeepSeek 用 thinking 对象', () => {
+    const body = buildOpenAIBody('deepseek-flash', {
+      ...content,
+      thinkingStyle: 'deepseek',
+    }) as { thinking: { type: string }; max_tokens: number; enable_thinking?: unknown };
     expect(body.thinking).toEqual({ type: 'disabled' });
     expect(body.max_tokens).toBe(128);
+    expect(body.enable_thinking).toBeUndefined();
 
-    const enabled = buildOpenAIBody('deepseek-flash', { ...content, thinking: true }) as {
-      thinking: { type: string };
-    };
+    const enabled = buildOpenAIBody('deepseek-flash', {
+      ...content,
+      thinking: true,
+      thinkingStyle: 'deepseek',
+    }) as { thinking: { type: string } };
     expect(enabled.thinking).toEqual({ type: 'enabled' });
+  });
+
+  it('百炼 Qwen 用顶层 enable_thinking', () => {
+    const body = buildOpenAIBody('qwen3.8-flash', {
+      ...content,
+      thinkingStyle: 'qwen',
+    }) as { enable_thinking: boolean; thinking?: unknown };
+    expect(body.enable_thinking).toBe(false);
+    expect(body.thinking).toBeUndefined();
+
+    const enabled = buildOpenAIBody('qwen3.8-flash', {
+      ...content,
+      thinking: true,
+      thinkingStyle: 'qwen',
+    }) as { enable_thinking: boolean };
+    expect(enabled.enable_thinking).toBe(true);
+  });
+
+  // OpenAI 官方接口对未知参数直接 400，所以默认一律不发
+  it('未声明思考风格时不发送任何思考参数', () => {
+    const body = buildOpenAIBody('gpt-4o-mini', content) as {
+      thinking?: unknown;
+      enable_thinking?: unknown;
+    };
+    expect(body.thinking).toBeUndefined();
+    expect(body.enable_thinking).toBeUndefined();
   });
 
   it('Anthropic 使用 base64 source 结构', () => {

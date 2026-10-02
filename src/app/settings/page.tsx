@@ -336,13 +336,22 @@ export default function SettingsPage() {
 
           <Field label="思考">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-[10px] text-[#55695B] leading-relaxed">
-                开启后模型会先做推理再回答。推理 token 与「输出 token 限额」共享额度，
-                推理模型（如 deepseek-flash）开着容易把预算用光导致正文为空，建议保持关闭。
-              </p>
+              {resolved.thinkingStyle === 'none' ? (
+                <p className="text-[10px] text-[#55695B] leading-relaxed">
+                  该厂商的接口不支持「思考」参数，这一项不会生效。
+                  OpenAI 官方接口对未知参数会直接报 400，因此这里按不发送处理。
+                </p>
+              ) : (
+                <p className="text-[10px] text-[#55695B] leading-relaxed">
+                  开启后模型会先做推理再回答。推理 token 与「输出 token 限额」共享额度，
+                  推理模型开着容易把预算用光导致正文为空，建议保持关闭。
+                  {resolved.thinkingStyle === 'qwen' && '（百炼用顶层 enable_thinking 传递）'}
+                </p>
+              )}
               <Switch
                 checked={draft.thinking}
                 onCheckedChange={value => setDraft(prev => ({ ...prev, thinking: value }))}
+                disabled={resolved.thinkingStyle === 'none'}
                 aria-label="思考开关"
               />
             </div>

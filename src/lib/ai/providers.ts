@@ -5,6 +5,14 @@
 
 export type ProviderKind = 'coze' | 'openai-compatible' | 'anthropic' | 'gemini';
 
+/**
+ * 「思考」开关各家字段不同，不能统一发送：
+ * - deepseek 用 thinking: { type: 'enabled' | 'disabled' }
+ * - qwen（百炼）用顶层的 enable_thinking: true/false
+ * - OpenAI 等接口不认识扩展字段，发了会直接 400，所以干脆不发
+ */
+export type ThinkingStyle = 'deepseek' | 'qwen' | 'none';
+
 export interface ProviderPreset {
   id: string;
   name: string;
@@ -18,6 +26,8 @@ export interface ProviderPreset {
   suggestedModels: string[];
   supportsVision: boolean;
   requiresApiKey: boolean;
+  /** 未声明时按 'none' 处理，即不发送任何思考相关参数 */
+  thinkingStyle?: ThinkingStyle;
   apiKeyUrl?: string;
   note?: string;
 }
@@ -52,6 +62,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     suggestedModels: ['doubao-seed-2-0-pro-260215'],
     supportsVision: true,
     requiresApiKey: false,
+    thinkingStyle: 'none',
     note: '部署在扣子编程内时使用项目运行时身份鉴权，无需填写 Key；本地/自建部署需配置 COZE_API_TOKEN 环境变量。',
   },
   {
@@ -64,6 +75,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     suggestedModels: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1'],
     supportsVision: true,
     requiresApiKey: true,
+    thinkingStyle: 'none',
     apiKeyUrl: 'https://platform.openai.com/api-keys',
   },
   {
@@ -76,6 +88,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     suggestedModels: ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-7-sonnet-latest'],
     supportsVision: true,
     requiresApiKey: true,
+    thinkingStyle: 'none',
     apiKeyUrl: 'https://console.anthropic.com/settings/keys',
   },
   {
@@ -88,6 +101,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     suggestedModels: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
     supportsVision: true,
     requiresApiKey: true,
+    thinkingStyle: 'none',
     apiKeyUrl: 'https://aistudio.google.com/app/apikey',
     note: 'Gemini 的 Key 通过 URL 参数传递（官方协议如此），请勿在公共网络抓包环境中使用。',
   },
@@ -102,6 +116,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     suggestedModels: ['deepseek-flash'],
     supportsVision: true,
     requiresApiKey: true,
+    thinkingStyle: 'deepseek',
     apiKeyUrl: 'https://platform.deepseek.com/api_keys',
     note: 'deepseek-flash 支持图片输入（JPEG/PNG/GIF/WebP）。同厂的 deepseek-v4-pro 为纯文本模型、不接受图片，如需使用请手动填写模型名。该模型为推理模型，默认关闭「思考」，否则推理会占满输出预算导致正文为空。',
   },
@@ -115,6 +130,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     suggestedModels: ['moonshot-v1-8k-vision-preview', 'moonshot-v1-32k-vision-preview', 'kimi-latest'],
     supportsVision: true,
     requiresApiKey: true,
+    thinkingStyle: 'none',
     apiKeyUrl: 'https://platform.moonshot.cn/console/api-keys',
   },
   {
@@ -127,19 +143,23 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     suggestedModels: ['glm-4v-plus', 'glm-4v-flash', 'glm-4v'],
     supportsVision: true,
     requiresApiKey: true,
+    thinkingStyle: 'none',
     apiKeyUrl: 'https://bigmodel.cn/usercenter/apikeys',
   },
   {
     id: 'qwen',
-    name: '通义千问 Qwen-VL',
+    name: '通义千问 Qwen',
     vendor: '阿里云百炼',
     kind: 'openai-compatible',
-    exampleBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    exampleModel: 'qwen-vl-max',
-    suggestedModels: ['qwen-vl-max', 'qwen-vl-plus', 'qwen2.5-vl-72b-instruct'],
+    exampleBaseUrl: 'https://maas.qianwenaiapi.com/compatible-mode/v1',
+    exampleModel: 'qwen3.8-flash',
+    suggestedModels: ['qwen3.8-flash', 'qwen3.8-max', 'qwen3.8-omni-flash', 'qwen3-vl-plus'],
     supportsVision: true,
     requiresApiKey: true,
+    // 百炼的思考开关是顶层 enable_thinking，而不是 DeepSeek 那种 thinking 对象
+    thinkingStyle: 'qwen',
     apiKeyUrl: 'https://bailian.console.aliyun.com/',
+    note: 'qwen3.8-flash / qwen3.8-max 支持图片输入。base_url 与业务空间、地域相关，形如 https://{WorkspaceId}.{地域}.maas.aliyuncs.com/compatible-mode/v1，请以百炼控制台给出的地址为准。',
   },
   CUSTOM_PRESET,
 ];
@@ -172,6 +192,7 @@ export interface ResolvedProvider {
   temperature: number;
   maxTokens: number;
   thinking: boolean;
+  thinkingStyle: ThinkingStyle;
   supportsVision: boolean;
 }
 
@@ -188,6 +209,7 @@ export function resolveProvider(input: ProviderConfigInput): ResolvedProvider {
     temperature: clampTemperature(input.temperature),
     maxTokens: clampMaxTokens(input.maxTokens),
     thinking: input.thinking === true,
+    thinkingStyle: preset.thinkingStyle ?? 'none',
     supportsVision: preset.supportsVision,
   };
 }
@@ -299,6 +321,8 @@ export interface ChatContent {
   temperature: number;
   /** 是否允许思考；缺省视为关闭 */
   thinking?: boolean;
+  /** 该厂商的思考参数风格；缺省不发任何思考参数 */
+  thinkingStyle?: ThinkingStyle;
 }
 
 export function buildOpenAIBody(model: string, content: ChatContent): unknown {
@@ -309,19 +333,26 @@ export function buildOpenAIBody(model: string, content: ChatContent): unknown {
       ]
     : content.userText;
 
-  return {
+  const body: Record<string, unknown> = {
     model,
     temperature: content.temperature,
     max_tokens: content.maxTokens,
-    // 推理模型会先用 reasoning tokens 思考，且与 max_tokens 共享额度；
-    // 这里始终显式声明，默认关闭思考，避免"思考吃满预算、正文为空"。
-    // 不认识该字段的网关按 OpenAI 协议通常会忽略它。
-    thinking: { type: content.thinking ? 'enabled' : 'disabled' },
     messages: [
       { role: 'system', content: content.systemPrompt },
       { role: 'user', content: userContent },
     ],
   };
+
+  // 推理模型会先用 reasoning tokens 思考，且与 max_tokens 共享额度，
+  // 所以需要显式声明是否开启。但各家字段不同，OpenAI 官方接口对未知参数
+  // 直接 400，因此只有明确支持的厂商才发送。
+  if (content.thinkingStyle === 'deepseek') {
+    body.thinking = { type: content.thinking ? 'enabled' : 'disabled' };
+  } else if (content.thinkingStyle === 'qwen') {
+    body.enable_thinking = content.thinking === true;
+  }
+
+  return body;
 }
 
 export function buildAnthropicBody(model: string, content: ChatContent): unknown {
