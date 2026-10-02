@@ -12,6 +12,18 @@
 -- 注意：token 存在浏览器本地，等同于"房间内的钥匙"。它不绑定真实身份，
 -- 但足以阻止「拿到房间号就能改数据」。
 
+-- ---------------------------------------------------------------- 清理旧版本
+--
+-- 早期版本没有加入审核，那批函数不带 token 参数，任何人都能直接调用。
+-- 如果之前执行过旧版脚本，必须先删掉它们，否则审核可以被绕过。
+
+drop function if exists public.create_room(jsonb);
+drop function if exists public.room_snapshot(text);
+drop function if exists public.room_add_round(text, jsonb, text);
+drop function if exists public.room_update_round(text, bigint, jsonb);
+drop function if exists public.room_delete_round(text, bigint);
+drop function if exists public.room_set_meta(text, jsonb);
+
 -- ---------------------------------------------------------------- 表结构
 
 create table if not exists public.rooms (
@@ -418,3 +430,7 @@ grant execute on function public.room_add_round(text, text, jsonb) to anon, auth
 grant execute on function public.room_update_round(text, text, bigint, jsonb) to anon, authenticated;
 grant execute on function public.room_delete_round(text, text, bigint) to anon, authenticated;
 grant execute on function public.room_set_meta(text, text, jsonb) to anon, authenticated;
+
+-- 新增函数后 PostgREST 需要刷新 schema 缓存，否则客户端会报
+-- "Could not find the function ... in the schema cache"。
+notify pgrst, 'reload schema';

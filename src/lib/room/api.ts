@@ -1,6 +1,6 @@
 'use client';
 
-import { getRoomClient, roomServiceConfigured } from './client';
+import { describeServiceConfig, getRoomClient, roomServiceConfigured } from './client';
 import {
   normalizeMeta,
   normalizeRoomCode,
@@ -26,6 +26,16 @@ export interface RoomStatus {
 const NOT_CONFIGURED = '房间服务未配置：请先在部署平台设置 SUPABASE 相关环境变量';
 
 function friendly(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes('could not find the function') || lower.includes('schema cache')) {
+    return '数据库函数不存在：请确认已在 Supabase 的 SQL Editor 里执行 supabase/schema.sql';
+  }
+  if (lower.includes('permission denied for function')) {
+    return '数据库函数没有匿名调用权限，请重新执行 supabase/schema.sql';
+  }
+  if (lower.includes('invalid api key') || lower.includes('no api key')) {
+    return 'Supabase key 无效，请检查 NEXT_PUBLIC_SUPABASE_ANON_KEY';
+  }
   if (message.includes('room_not_found')) return '房间不存在或已被删除';
   if (message.includes('round_not_found')) return '这一局已经不存在了，可能被其他人删除';
   if (message.includes('code_taken')) return '这个房间号已经被占用，换一个吧';
@@ -36,6 +46,67 @@ function friendly(message: string): string {
   if (message.includes('not_host')) return '只有房主可以做这个操作';
   if (message.toLowerCase().includes('failed to fetch')) return '网络异常，请检查网络后重试';
   return message;
+}
+
+export interface RoomDiagnosis {
+  configured: boolean;
+  urlHost: string | null;
+  keyRole: string | null;
+  keyRef: string | null;
+  functionReady: boolean;
+  ok: boolean;
+  message: string;
+}
+
+/** 自检：判断到底是环境变量、SQL 还是权限的问题 */
+export async function diagnoseRoomService(): Promise<RoomDiagnosis> {
+  const info = describeServiceConfig();
+  const base = {
+    configured: info.configured,
+    urlHost: info.urlHost,
+    keyRole: info.keyRole,
+    keyRef: info.keyRef,
+  };
+
+  if (!info.configured) {
+    return {
+      ...base,
+      functionReady: false,
+      ok: false,
+      message:
+        '未检测到环境变量。需要在部署平台配置 NEXT_PUBLIC_SUPABASE_URL 与 NEXT_PUBLIC_SUPABASE_ANON_KEY，' +
+        '并且改完要重新部署（这两个值是在构建时打进前端的）。',
+    };
+  }
+
+  const rpc = getRoomClient();
+  if (!rpc) {
+    return { ...base, functionReady: false, ok: false, message: NOT_CONFIGURED };
+  }
+
+  const { error } = await rpc.rpc('room_status', { p_code: 'AAAAAA', p_token: '' });
+  if (error) {
+    const lower = error.message.toLowerCase();
+    const missing =
+      lower.includes('could not find the function') || lower.includes('schema cache');
+    return {
+      ...base,
+      functionReady: !missing,
+      ok: false,
+      message: friendly(error.message),
+    };
+  }
+
+  if (info.keyRole && info.keyRole !== 'anon') {
+    return {
+      ...base,
+      functionReady: true,
+      ok: false,
+      message: `连接正常，但当前用的是 ${info.keyRole} key。请改用 anon public key——service_role 拥有绕过 RLS 的权限，绝不能放到前端。`,
+    };
+  }
+
+  return { ...base, functionReady: true, ok: true, message: '连接正常，可以创建房间' };
 }
 
 function client() {
